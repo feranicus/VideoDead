@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VideoDead — How it works</title>
+<meta name="description" content="VideoDead — a dead-simple, secure tool to download videos. See exactly how it works, step by step, in plain words.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08110f; --bg2:#0e1c19; --card:#0f1f1c; --line:rgba(0,215,189,.16);
+  --teal:#00D7BD; --teal2:#00A49A; --tealDark:#0C544E;
+  --amber:#FFC33C; --blue:#5BB8FF; --pink:#FF7AA8;
+  --ink:#eafff9; --muted:#8fb3ac; --ease:cubic-bezier(.2,.7,.2,1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.6}
+img{max-width:100%}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+section{padding:74px 0;position:relative}
+a{color:var(--teal)}
+
+/* ---- top bar ---- */
+header{position:fixed;top:0;left:0;right:0;z-index:200;padding:14px 0;transition:.3s;border-bottom:1px solid transparent}
+header.stuck{background:rgba(8,17,15,.86);backdrop-filter:blur(12px);border-color:var(--line)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:.02em}
+.brand .em{width:11px;height:11px;border-radius:50%;background:var(--teal);box-shadow:0 0 14px 3px rgba(0,215,189,.7);animation:pulse 2.4s infinite}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+.brand .dot{color:var(--teal)}
+.controls{display:flex;align-items:center;gap:10px}
+.lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.lang button{background:none;border:0;color:var(--muted);padding:9px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:.2s;min-width:54px}
+.lang button.on{background:var(--teal);color:#06201c}
+.lang button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+/* ---- hero ---- */
+.hero{min-height:92svh;display:flex;align-items:center;padding-top:90px;overflow:hidden;
+  background:radial-gradient(90% 80% at 80% 0,rgba(0,215,189,.10),transparent 60%),
+             radial-gradient(70% 60% at 0% 100%,rgba(12,84,78,.4),transparent 55%)}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--teal);margin-bottom:20px}
+.eyebrow .d{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 12px var(--teal);animation:pulse 1.8s infinite}
+h1.hh{font-size:clamp(42px,8.5vw,104px);font-weight:800;line-height:.96;letter-spacing:-.02em}
+h1.hh .dot{color:var(--teal)}
+.lead{max-width:620px;font-size:clamp(17px,2.3vw,22px);color:#cdeee7;margin-top:22px}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:34px}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:16px 26px;border-radius:14px;font-size:16px;font-weight:800;
+  border:1px solid transparent;cursor:pointer;font-family:inherit;transition:.25s;text-decoration:none}
+.btn-main{background:var(--teal);color:#06201c}
+.btn-main:hover{transform:translateY(-2px);box-shadow:0 14px 30px -10px rgba(0,215,189,.5)}
+.btn-ghost{border-color:var(--line);color:var(--ink)}
+.btn-ghost:hover{border-color:var(--teal);color:var(--teal)}
+.hstats{display:flex;gap:18px;flex-wrap:wrap;margin-top:52px}
+.hstat{flex:1 1 150px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+.hstat b{display:block;font-size:22px;color:var(--teal);font-weight:800}
+.hstat span{font-size:13.5px;color:var(--muted)}
+
+/* ---- section heads ---- */
+.sec-tag{font-size:13px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--amber)}
+.sec-title{font-size:clamp(28px,5vw,52px);font-weight:800;line-height:1.04;margin:14px 0 14px;letter-spacing:-.01em}
+.sec-title em{font-style:normal;color:var(--teal)}
+.sec-desc{max-width:680px;font-size:clamp(16px,2vw,19px);color:#bfe0d9}
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+
+/* ---- the animated map ---- */
+.map-shell{margin-top:26px;border:1px solid var(--line);border-radius:24px;background:
+  radial-gradient(80% 100% at 50% 0,rgba(0,215,189,.06),transparent 60%),var(--bg2);padding:14px}
+.map-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:8px 8px 14px}
+.tour-btn{background:var(--teal);color:#06201c;border:0;border-radius:12px;padding:13px 20px;font-weight:800;font-size:15.5px;cursor:pointer;font-family:inherit;transition:.2s}
+.tour-btn:hover{transform:translateY(-2px)}
+.tour-btn.off{background:var(--amber)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.scroller{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;border-radius:18px}
+.scroller svg{display:block;min-width:760px;width:100%;height:auto}
+.cap{min-height:54px;display:flex;align-items:center;gap:10px;margin:12px 6px 2px;padding:14px 16px;border-radius:14px;
+  background:rgba(0,215,189,.07);border:1px solid var(--line);font-size:clamp(15px,2.2vw,18px);font-weight:600;color:#e7fffa;
+  opacity:0;transform:translateY(8px);transition:.4s}
+.cap.show{opacity:1;transform:none}
+.cap b{color:var(--teal)}
+.swipe{display:none;text-align:center;color:var(--muted);font-size:13px;margin-top:10px}
+.node{cursor:pointer}
+.node .box{transition:opacity .3s}
+.flash .box{animation:flash 1.3s ease}
+@keyframes flash{0%,100%{filter:none}40%{filter:drop-shadow(0 0 16px var(--teal))}}
+
+/* ---- 30 seconds timeline ---- */
+.tl{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px}
+.ti{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px 16px;position:relative;overflow:hidden}
+.ti .bar{position:absolute;top:0;left:0;height:3px;width:100%;background:linear-gradient(90deg,var(--teal),transparent);transform:scaleX(0);transform-origin:left;animation:fillb 2s var(--ease) infinite}
+@keyframes fillb{0%{transform:scaleX(0)}45%{transform:scaleX(1)}100%{transform:scaleX(1);opacity:.3}}
+.ti .ico{font-size:30px}
+.ti b{display:block;margin:10px 0 4px;font-size:16px}
+.ti p{font-size:14px;color:var(--muted)}
+
+/* ---- deep dive ---- */
+#ddwrap{display:grid;gap:16px;margin-top:24px}
+.dd{display:grid;grid-template-columns:54px 1fr;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;scroll-margin-top:90px}
+.dd .num{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-weight:900;color:#06201c;font-size:18px}
+.dd h3{font-size:20px;display:flex;align-items:center;gap:10px}
+.dd .plain{margin-top:8px;font-size:16px;color:#d8efe9}
+.dd .plain b{color:var(--teal)}
+.flowstrip{height:6px;border-radius:4px;margin:16px 0;background:rgba(255,255,255,.05);position:relative;overflow:hidden}
+.flowstrip i{position:absolute;top:0;height:100%;width:30%;border-radius:4px;background:linear-gradient(90deg,transparent,var(--c,var(--teal)),transparent);animation:slide 2.4s linear infinite}
+@keyframes slide{from{left:-30%}to{left:100%}}
+.hood{border-top:1px dashed var(--line);padding-top:14px}
+.hood summary{cursor:pointer;font-weight:700;color:var(--amber);font-size:14.5px;list-style:none}
+.hood summary::-webkit-details-marker{display:none}
+.hood summary::before{content:"⚙ ";}
+.hood ul{margin:12px 0 0 2px;padding-left:18px;color:var(--muted);font-size:14px}
+.hood li{margin-bottom:7px}
+.hood code{background:rgba(0,215,189,.1);color:var(--teal);padding:1px 6px;border-radius:5px;font-size:13px}
+
+/* ---- safety cards ---- */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}
+.sc{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px}
+.sc .ic{font-size:30px}
+.sc h4{font-size:18px;margin:12px 0 8px}
+.sc p{font-size:14.5px;color:var(--muted)}
+
+/* ---- footer ---- */
+footer{border-top:1px solid var(--line);padding:46px 0 60px;text-align:center;color:var(--muted)}
+footer .fb{font-weight:800;font-size:22px;color:var(--ink)}
+footer .fb .dot{color:var(--teal)}
+footer .fm{font-size:13.5px;margin-top:12px;line-height:1.8}
+
+/* ---- responsive ---- */
+@media(max-width:900px){
+  .tl{grid-template-columns:1fr 1fr}
+  .cards{grid-template-columns:1fr}
+  .swipe{display:block}
+  section{padding:56px 0}
+}
+@media(max-width:560px){
+  .tl{grid-template-columns:1fr}
+  .hstat{flex:1 1 100%}
+  .dd{grid-template-columns:1fr}
+  .dd .num{margin-bottom:-6px}
+  .btn{width:100%;justify-content:center}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .reveal{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<header id="hdr">
+  <div class="wrap bar">
+    <a href="#top" class="brand"><span class="em"></span>VideoDead<span class="dot">.</span></a>
+    <div class="controls">
+      <div class="lang" role="group" aria-label="Language">
+        <button data-lang="en" class="on">EN</button>
+        <button data-lang="ru">RU</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="eyebrow reveal"><span class="d"></span><span data-i18n="hero.eyebrow">How it works · in plain words</span></div>
+    <h1 class="hh reveal" data-i18n="hero.title">VideoDead<span class="dot">.</span></h1>
+    <p class="lead reveal" data-i18n="hero.lead">Paste a video link, press one button, get the file. This page shows you exactly what happens behind that button — step by step, the way you would explain it to a friend.</p>
+    <div class="hero-cta reveal">
+      <a href="#map" class="btn btn-main" data-i18n="hero.btn1">▶ Watch how it works</a>
+      <a href="#deep" class="btn btn-ghost" data-i18n="hero.btn2">Explain it deeper</a>
+    </div>
+    <div class="hstats reveal">
+      <div class="hstat"><b data-i18n="hero.s1a">1 button</b><span data-i18n="hero.s1b">Paste · choose · download</span></div>
+      <div class="hstat"><b data-i18n="hero.s2a">0 to install</b><span data-i18n="hero.s2b">Just open a web page</span></div>
+      <div class="hstat"><b data-i18n="hero.s3a">Private</b><span data-i18n="hero.s3b">Files auto-erase after a while</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ONE SENTENCE -->
+<section class="wrap">
+  <div class="reveal">
+    <div class="sec-tag" data-i18n="one.tag">/ The whole idea</div>
+    <h2 class="sec-title" data-i18n="one.title">If you remember <em>one thing</em></h2>
+    <p class="sec-desc" data-i18n="one.desc">You paste the address of a video. A helper on the internet goes and fetches that video for you, and hands you back a clean file you can keep. You never touch anything technical. That is the entire product.</p>
+  </div>
+</section>
+
+<!-- ANIMATED MAP -->
+<section class="wrap" id="map">
+  <div class="reveal">
+    <div class="sec-tag" data-i18n="map.tag">/ The living map · follow the dots</div>
+    <h2 class="sec-title" data-i18n="map.title">Watch your link <em>travel</em></h2>
+    <p class="sec-desc" data-i18n="map.desc">The little glowing dots are your request moving through the system. Press the tour button and it will walk you through every stop. Tap any box to jump to its full explanation.</p>
+  </div>
+  <div class="map-shell reveal">
+    <div class="map-toolbar">
+      <button class="tour-btn" id="tour" data-i18n="map.tour">▶ Take the guided tour</button>
+      <div class="legend">
+        <span><i style="background:var(--teal)"></i><span data-i18n="map.lg1">Your request</span></span>
+        <span><i style="background:var(--amber)"></i><span data-i18n="map.lg2">Waiting &amp; working</span></span>
+        <span><i style="background:var(--blue)"></i><span data-i18n="map.lg3">The video coming back</span></span>
+      </div>
+    </div>
+    <div class="scroller">
+      <svg id="flow" viewBox="0 0 1180 470" role="img" aria-label="Animated diagram of how VideoDead downloads a video">
+        <defs>
+          <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="3.2" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g id="edges"></g>
+        <g id="nodes"></g>
+      </svg>
+    </div>
+    <div class="cap" id="cap"><b data-i18n="map.capHint">Tip:</b>&nbsp;<span data-i18n="map.capHint2">press the green tour button above to begin.</span></div>
+    <div class="swipe" data-i18n="map.swipe">← swipe to see the whole map →</div>
+  </div>
+</section>
+
+<!-- 30 SECONDS -->
+<section class="wrap" id="quick">
+  <div class="reveal">
+    <div class="sec-tag" data-i18n="q.tag">/ One link — all the work</div>
+    <h2 class="sec-title" data-i18n="q.title">What happens in <em>about 30 seconds</em></h2>
+    <div class="tl">
+      <div class="ti"><div class="bar"></div><div class="ico">📱</div><b data-i18n="q.1a">1 · You ask</b><p data-i18n="q.1b">Paste a link, choose Video or Audio, press Download.</p></div>
+      <div class="ti"><div class="bar"></div><div class="ico">🔒</div><b data-i18n="q.2a">2 · Safety check</b><p data-i18n="q.2b">The system makes sure the link is real and safe.</p></div>
+      <div class="ti"><div class="bar"></div><div class="ico">⚙️</div><b data-i18n="q.3a">3 · It fetches</b><p data-i18n="q.3b">A worker visits the website and downloads the video.</p></div>
+      <div class="ti"><div class="bar"></div><div class="ico">⬇️</div><b data-i18n="q.4a">4 · You receive</b><p data-i18n="q.4b">Your file appears, ready to save. Then it auto-erases.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- DEEP DIVE -->
+<section class="wrap" id="deep">
+  <div class="reveal">
+    <div class="sec-tag" data-i18n="dd.tag">/ The deep dive · still simple</div>
+    <h2 class="sec-title" data-i18n="dd.title">Every stop, <em>explained</em></h2>
+    <p class="sec-desc" data-i18n="dd.desc">On top: in plain words, for you. Underneath, "under the hood": the technical truth, for a developer. Open it only if you are curious.</p>
+  </div>
+  <div id="ddwrap"></div>
+</section>
+
+<!-- SAFETY -->
+<section class="wrap" id="safe">
+  <div class="reveal">
+    <div class="sec-tag" data-i18n="sf.tag">/ Safe &amp; in your control</div>
+    <h2 class="sec-title" data-i18n="sf.title">You are always <em>in charge</em></h2>
+    <div class="cards">
+      <div class="sc"><div class="ic">🔑</div><h4 data-i18n="sf.1a">Only you get in</h4><p data-i18n="sf.1b">A private password protects the page. You can add a one-time phone code for extra safety. No shared default password ever.</p></div>
+      <div class="sc"><div class="ic">🛡️</div><h4 data-i18n="sf.2a">It refuses tricks</h4><p data-i18n="sf.2b">The system blocks sneaky links that try to reach private or hidden addresses. It only follows real public video links.</p></div>
+      <div class="sc"><div class="ic">🧹</div><h4 data-i18n="sf.3a">It forgets your files</h4><p data-i18n="sf.3b">Downloaded videos are wiped from the server after a few hours, so nothing piles up and nothing lingers.</p></div>
+      <div class="sc"><div class="ic">🔒</div><h4 data-i18n="sf.4a">Locked connection</h4><p data-i18n="sf.4b">Everything travels over an encrypted (HTTPS) connection — the same lock your bank uses.</p></div>
+      <div class="sc"><div class="ic">⚖️</div><h4 data-i18n="sf.5a">Lawful use</h4><p data-i18n="sf.5b">For videos you own or may download. It does not break paid services' protection (like Netflix). You stay on the right side.</p></div>
+      <div class="sc"><div class="ic">🧰</div><h4 data-i18n="sf.6a">Built on a proven engine</h4><p data-i18n="sf.6b">The downloading is done by yt-dlp, a trusted open-source tool used by millions — we just wrapped it in a friendly button.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="fb">VideoDead<span class="dot">.</span></div>
+    <div class="fm" data-i18n="ft.line">Engine: yt-dlp · Hosted on your own server · Secure by design (CISA + Singapore CSA)</div>
+  </div>
+</footer>
+
+<script>
+/* ============ TRANSLATIONS ============ */
+const T={
+ en:{
+  'hero.eyebrow':'How it works · in plain words',
+  'hero.title':'VideoDead<span class="dot">.</span>',
+  'hero.lead':'Paste a video link, press one button, get the file. This page shows you exactly what happens behind that button — step by step, the way you would explain it to a friend.',
+  'hero.btn1':'▶ Watch how it works','hero.btn2':'Explain it deeper',
+  'hero.s1a':'1 button','hero.s1b':'Paste · choose · download',
+  'hero.s2a':'0 to install','hero.s2b':'Just open a web page',
+  'hero.s3a':'Private','hero.s3b':'Files auto-erase after a while',
+  'one.tag':'/ The whole idea','one.title':'If you remember <em>one thing</em>',
+  'one.desc':'You paste the address of a video. A helper on the internet goes and fetches that video for you, and hands you back a clean file you can keep. You never touch anything technical. That is the entire product.',
+  'map.tag':'/ The living map · follow the dots','map.title':'Watch your link <em>travel</em>',
+  'map.desc':'The little glowing dots are your request moving through the system. Press the tour button and it will walk you through every stop. Tap any box to jump to its full explanation.',
+  'map.tour':'▶ Take the guided tour','map.lg1':'Your request','map.lg2':'Waiting & working','map.lg3':'The video coming back',
+  'map.capHint':'Tip:','map.capHint2':'press the green tour button above to begin.','map.swipe':'← swipe to see the whole map →',
+  'q.tag':'/ One link — all the work','q.title':'What happens in <em>about 30 seconds</em>',
+  'q.1a':'1 · You ask','q.1b':'Paste a link, choose Video or Audio, press Download.',
+  'q.2a':'2 · Safety check','q.2b':'The system makes sure the link is real and safe.',
+  'q.3a':'3 · It fetches','q.3b':'A worker visits the website and downloads the video.',
+  'q.4a':'4 · You receive','q.4b':'Your file appears, ready to save. Then it auto-erases.',
+  'dd.tag':'/ The deep dive · still simple','dd.title':'Every stop, <em>explained</em>',
+  'dd.desc':'On top: in plain words, for you. Underneath, "under the hood": the technical truth, for a developer. Open it only if you are curious.',
+  'sf.tag':'/ Safe & in your control','sf.title':'You are always <em>in charge</em>',
+  'sf.1a':'Only you get in','sf.1b':'A private password protects the page. You can add a one-time phone code for extra safety. No shared default password ever.',
+  'sf.2a':'It refuses tricks','sf.2b':'The system blocks sneaky links that try to reach private or hidden addresses. It only follows real public video links.',
+  'sf.3a':'It forgets your files','sf.3b':'Downloaded videos are wiped from the server after a few hours, so nothing piles up and nothing lingers.',
+  'sf.4a':'Locked connection','sf.4b':'Everything travels over an encrypted (HTTPS) connection — the same lock your bank uses.',
+  'sf.5a':'Lawful use','sf.5b':'For videos you own or may download. It does not break paid services'+"'"+' protection (like Netflix). You stay on the right side.',
+  'sf.6a':'Built on a proven engine','sf.6b':'The downloading is done by yt-dlp, a trusted open-source tool used by millions — we just wrapped it in a friendly button.',
+  'ft.line':'Engine: yt-dlp · Hosted on your own server · Secure by design (CISA + Singapore CSA)',
+  'tourStop':'⏸ Stop the tour'
+ },
+ ru:{
+  'hero.eyebrow':'Как это работает · простыми словами',
+  'hero.title':'VideoDead<span class="dot">.</span>',
+  'hero.lead':'Вставьте ссылку на видео, нажмите одну кнопку — и получите файл. На этой странице показано, что именно происходит за этой кнопкой: шаг за шагом, как будто объясняешь подруге.',
+  'hero.btn1':'▶ Посмотреть, как работает','hero.btn2':'Объяснить подробнее',
+  'hero.s1a':'1 кнопка','hero.s1b':'Вставить · выбрать · скачать',
+  'hero.s2a':'0 установки','hero.s2b':'Просто откройте страницу',
+  'hero.s3a':'Приватно','hero.s3b':'Файлы сами удаляются со временем',
+  'one.tag':'/ Вся суть','one.title':'Если запомнить <em>одно</em>',
+  'one.desc':'Вы вставляете адрес видео. Помощник в интернете сам идёт и забирает это видео для вас, а затем отдаёт готовый файл, который можно сохранить. Вы не трогаете ничего технического. Это и есть весь продукт.',
+  'map.tag':'/ Живая карта · следите за точками','map.title':'Смотрите, как ссылка <em>путешествует</em>',
+  'map.desc':'Маленькие светящиеся точки — это ваш запрос, который движется по системе. Нажмите кнопку тура, и она проведёт вас по каждой остановке. Нажмите на любой блок, чтобы перейти к его подробному объяснению.',
+  'map.tour':'▶ Пройти экскурсию','map.lg1':'Ваш запрос','map.lg2':'Ожидание и работа','map.lg3':'Видео возвращается',
+  'map.capHint':'Подсказка:','map.capHint2':'нажмите зелёную кнопку тура выше, чтобы начать.','map.swipe':'← проведите пальцем, чтобы увидеть всю карту →',
+  'q.tag':'/ Одна ссылка — вся работа','q.title':'Что происходит за <em>примерно 30 секунд</em>',
+  'q.1a':'1 · Вы просите','q.1b':'Вставьте ссылку, выберите Видео или Аудио, нажмите Скачать.',
+  'q.2a':'2 · Проверка','q.2b':'Система убеждается, что ссылка настоящая и безопасная.',
+  'q.3a':'3 · Забирает','q.3b':'Рабочий заходит на сайт и скачивает видео.',
+  'q.4a':'4 · Вы получаете','q.4b':'Появляется ваш файл, готовый к сохранению. Потом он сам удаляется.',
+  'dd.tag':'/ Глубокое погружение · но просто','dd.title':'Каждая остановка — <em>разобрана</em>',
+  'dd.desc':'Сверху — простыми словами, для вас. Снизу, «под капотом», — техническая правда, для разработчика. Откройте, только если любопытно.',
+  'sf.tag':'/ Безопасно и под вашим контролем','sf.title':'Вы всегда <em>главная</em>',
+  'sf.1a':'Войдёте только вы','sf.1b':'Страницу защищает личный пароль. Можно добавить одноразовый код с телефона для дополнительной защиты. Никаких общих паролей по умолчанию.',
+  'sf.2a':'Отклоняет уловки','sf.2b':'Система блокирует хитрые ссылки, которые пытаются достучаться до приватных или скрытых адресов. Она идёт только по настоящим публичным ссылкам на видео.',
+  'sf.3a':'Забывает ваши файлы','sf.3b':'Скачанные видео стираются с сервера через несколько часов — ничего не накапливается и не остаётся.',
+  'sf.4a':'Защищённое соединение','sf.4b':'Всё передаётся по зашифрованному соединению (HTTPS) — такой же замок, как у вашего банка.',
+  'sf.5a':'Законное использование','sf.5b':'Для видео, которыми вы владеете или вправе скачивать. Система не взламывает защиту платных сервисов (вроде Netflix). Вы остаётесь в рамках закона.',
+  'sf.6a':'На проверенном движке','sf.6b':'Скачиванием занимается yt-dlp — надёжный открытый инструмент, которым пользуются миллионы. Мы просто обернули его в удобную кнопку.',
+  'ft.line':'Движок: yt-dlp · Размещён на вашем сервере · Безопасность по дизайну (CISA + CSA Сингапур)',
+  'tourStop':'⏸ Остановить экскурсию'
+ }
+};
+let lang='en';
+
+/* ============ NODES & EDGES ============ */
+const C={teal:'#00D7BD',amber:'#FFC33C',blue:'#5BB8FF'};
+const NODES=[
+ {id:'you',  x:110, y:235, ico:'📱', c:C.teal,  n:'1', dd:'d1', en:['YOU','Paste a link'],            ru:['ВЫ','Вставляете ссылку']},
+ {id:'door', x:330, y:235, ico:'🔒', c:C.teal,  n:'2', dd:'d2', en:['LOCKED DOOR','HTTPS + password'],ru:['ОХРАНА','HTTPS + пароль']},
+ {id:'api',  x:560, y:120, ico:'🧠', c:C.teal,  n:'3', dd:'d3', en:['THE ORGANIZER','Checks & accepts'],ru:['ОРГАНИЗАТОР','Проверяет, принимает']},
+ {id:'queue',x:560, y:350, ico:'🎟️', c:C.amber, n:'4', dd:'d4', en:['THE LINE','Your ticket waits'],   ru:['ОЧЕРЕДЬ','Талончик ждёт']},
+ {id:'worker',x:800,y:235, ico:'⚙️', c:C.amber, n:'5', dd:'d5', en:['THE WORKER','Downloads it'],      ru:['РАБОЧИЙ','Скачивает']},
+ {id:'site', x:1050,y:120, ico:'🎬', c:C.amber, n:'6', dd:'d6', en:['THE SOURCE','The video website'], ru:['ИСТОЧНИК','Сайт с видео']},
+ {id:'shelf',x:1050,y:350, ico:'💾', c:C.blue,  n:'7', dd:'d7', en:['THE SHELF','Holds, then forgets'],ru:['ПОЛКА','Хранит, потом удаляет']},
+];
+const EDGES=[
+ {a:'you',b:'door',c:C.teal},
+ {a:'door',b:'api',c:C.teal},
+ {a:'api',b:'queue',c:C.amber,bow:-30},
+ {a:'queue',b:'worker',c:C.amber},
+ {a:'worker',b:'site',c:C.amber,two:true,bow:-30},
+ {a:'worker',b:'shelf',c:C.amber},
+ {a:'shelf',b:'door',c:C.blue,bow:120},
+ {a:'door',b:'you',c:C.blue,bow:90},
+];
+
+const NS='http://www.w3.org/2000/svg';
+const byId=Object.fromEntries(NODES.map(n=>[n.id,n]));
+const el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e};
+const pathD=(a,b,bow)=>{const mx=(a.x+b.x)/2,my=(a.y+b.y)/2-(bow||0);return `M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`};
+
+const eg=document.getElementById('edges'),ng=document.getElementById('nodes');
+const E=[],Ngr={},Ntext={};
+
+EDGES.forEach((e,i)=>{
+  const a=byId[e.a],b=byId[e.b],d=pathD(a,b,e.bow);
+  const p=el('path',{d,fill:'none',stroke:e.c,'stroke-width':2,'stroke-opacity':.22,'stroke-dasharray':'2 9','stroke-linecap':'round'});
+  eg.appendChild(p);
+  const dots=[];
+  for(let k=0;k<3;k++){
+    const dot=el('circle',{r:4.6,fill:e.c,filter:'url(#glow)'});
+    const m=el('animateMotion',{dur:(3.6+i*.1)+'s',repeatCount:'indefinite',begin:(-(k*1.2))+'s',path:d,calcMode:'linear'});
+    if(e.two&&k===1){m.setAttribute('keyPoints','1;0');m.setAttribute('keyTimes','0;1')}
+    dot.appendChild(m);eg.appendChild(dot);dots.push(dot);
+  }
+  E.push({path:p,dots,from:e.a,to:e.b});
+});
+
+NODES.forEach(n=>{
+  const w=170,h=86,x=n.x-w/2,y=n.y-h/2;
+  const g=el('g',{class:'node'});
+  g.appendChild(el('rect',{x:x-1,y:y-1,width:w+2,height:h+2,rx:18,fill:'none',stroke:n.c,'stroke-opacity':.5,'stroke-width':1.5}));
+  const box=el('rect',{class:'box',x,y,width:w,height:h,rx:17,fill:'#0f1f1c',stroke:n.c,'stroke-opacity':.4,'stroke-width':1.2});
+  g.appendChild(box);
+  const ic=el('text',{x:n.x,y:y+33,'text-anchor':'middle','font-size':26});ic.textContent=n.ico;g.appendChild(ic);
+  const t=el('text',{x:n.x,y:y+57,'text-anchor':'middle','font-size':13.5,'font-weight':800,fill:'#f3fffb','font-family':'Manrope'});g.appendChild(t);
+  const s=el('text',{x:n.x,y:y+74,'text-anchor':'middle','font-size':10.5,'font-weight':600,fill:'#9ec7bf','font-family':'Manrope'});g.appendChild(s);
+  Ntext[n.id]={t,s};
+  const bx=x+16;
+  g.appendChild(el('circle',{cx:bx,cy:y,r:13,fill:n.c,filter:'url(#glow)'}));
+  const num=el('text',{x:bx,y:y+5,'text-anchor':'middle','font-size':13,'font-weight':900,fill:'#06201c','font-family':'Manrope'});num.textContent=n.n;g.appendChild(num);
+  g.addEventListener('click',()=>flash(n.dd));
+  g.addEventListener('mouseenter',()=>{if(!touring)hl([n.id])});
+  g.addEventListener('mouseleave',()=>{if(!touring)hl(null)});
+  ng.appendChild(g);Ngr[n.id]=g;
+});
+
+function setNodeLabels(){NODES.forEach(n=>{Ntext[n.id].t.textContent=n[lang][0];Ntext[n.id].s.textContent=n[lang][1];});}
+
+function hl(ids){
+  E.forEach(e=>{const on=!ids||ids.includes(e.from)&&ids.includes(e.to)||ids.includes(e.from)||ids.includes(e.to);
+    e.path.style.strokeOpacity=ids?(on?.65:.05):.22;
+    e.dots.forEach(d=>d.style.opacity=ids?(on?1:.08):1);});
+  NODES.forEach(n=>{Ngr[n.id].style.opacity=ids?(ids.includes(n.id)?1:.3):1;Ngr[n.id].style.transition='opacity .3s';});
+}
+
+/* ============ TOUR ============ */
+const STEPS=[
+ {ids:['you','door'], en:'<b>Step 1.</b> You paste a video link. It travels over a private, locked connection — nobody can peek.',                 ru:'<b>Шаг 1.</b> Вы вставляете ссылку на видео. Она идёт по приватному защищённому соединению — никто не подсмотрит.'},
+ {ids:['door','api'], en:'<b>Step 2.</b> A guard checks the link is real and safe, then hands it to the organizer.',                              ru:'<b>Шаг 2.</b> Охрана проверяет, что ссылка настоящая и безопасная, и передаёт её организатору.'},
+ {ids:['api','queue'],en:'<b>Step 3.</b> Your job gets a numbered ticket and waits in line, so nothing ever overloads.',                          ru:'<b>Шаг 3.</b> Ваша задача получает талончик с номером и встаёт в очередь, чтобы ничего не перегружалось.'},
+ {ids:['queue','worker'],en:'<b>Step 4.</b> When it is your turn, the worker picks up your job.',                                                ru:'<b>Шаг 4.</b> Когда подходит ваша очередь, рабочий берёт вашу задачу.'},
+ {ids:['worker','site'],en:'<b>Step 5.</b> The worker visits the real video website and downloads the video.',                                   ru:'<b>Шаг 5.</b> Рабочий заходит на настоящий сайт с видео и скачивает его.'},
+ {ids:['worker','shelf'],en:'<b>Step 6.</b> The finished file is placed on a shelf, ready just for you.',                                        ru:'<b>Шаг 6.</b> Готовый файл кладётся на полку, специально для вас.'},
+ {ids:['shelf','door','you'],en:'<b>Step 7.</b> You download your file. Soon after, the shelf erases it by itself — for your privacy.',          ru:'<b>Шаг 7.</b> Вы скачиваете свой файл. Вскоре полка сама его стирает — ради вашей приватности.'},
+];
+let touring=false,ti=0,timer=null;
+const cap=document.getElementById('cap'),tbtn=document.getElementById('tour');
+function showStep(){const s=STEPS[ti];hl(s.ids);cap.innerHTML=s[lang];cap.classList.add('show');ti=(ti+1)%STEPS.length;timer=setTimeout(showStep,3000);}
+function startTour(){touring=true;ti=0;showStep();tbtn.textContent=T[lang]['tourStop'];tbtn.classList.add('off');document.getElementById('map').scrollIntoView({behavior:'smooth',block:'start'});}
+function stopTour(){touring=false;clearTimeout(timer);hl(null);tbtn.textContent=T[lang]['map.tour'];tbtn.classList.remove('off');}
+tbtn.onclick=()=>{touring?stopTour():startTour();};
+
+/* ============ DEEP DIVE ============ */
+const DD=[
+ {id:'d1',n:'1',ic:'📱',c:C.teal,
+  en:['You and the page','You open a simple web page — no app to install. You paste a link, pick <b>Video</b> or <b>Audio only</b>, and press one button. That is everything you have to do.',
+      ['Front end: <code>React</code> single-page app, served as static files','One screen: input, a Video/Audio toggle, a Download button, a progress bar','Works on phone and computer; large buttons, high contrast for accessibility']],
+  ru:['Вы и страница','Вы открываете простую веб-страницу — ничего устанавливать не нужно. Вставляете ссылку, выбираете <b>Видео</b> или <b>Только аудио</b> и жмёте одну кнопку. Это всё, что от вас требуется.',
+      ['Фронтенд: одностраничное приложение на <code>React</code>, отдаётся как статика','Один экран: поле, переключатель Видео/Аудио, кнопка Скачать, полоса прогресса','Работает на телефоне и компьютере; крупные кнопки, высокий контраст']]},
+ {id:'d2',n:'2',ic:'🔒',c:C.teal,
+  en:['The locked door','Before anything happens, the page is protected by your password (and an optional phone code). Everything travels through an encrypted, locked connection — like online banking.',
+      ['Edge proxy: <code>Caddy</code> with automatic HTTPS (Let’s Encrypt) and HSTS','Login with <code>Argon2id</code> password hashing; optional <code>TOTP</code> two-factor','Secure cookies (HttpOnly, SameSite=Strict), strict security headers / CSP']],
+  ru:['Закрытая дверь','Прежде чем что-то начнётся, страницу защищает ваш пароль (и при желании код с телефона). Всё идёт через зашифрованное защищённое соединение — как в онлайн-банке.',
+      ['Прокси на входе: <code>Caddy</code> с автоматическим HTTPS (Let’s Encrypt) и HSTS','Вход с хешированием пароля <code>Argon2id</code>; по желанию двухфакторный <code>TOTP</code>','Защищённые куки (HttpOnly, SameSite=Strict), строгие заголовки безопасности / CSP']]},
+ {id:'d3',n:'3',ic:'🧠',c:C.teal,
+  en:['The organizer','A small, careful program reads your link, checks it is a safe public address (not a trick that points somewhere private), and accepts the job. It never downloads anything itself — it just delegates.',
+      ['API: <code>Python</code> + <code>FastAPI</code> (same language as the engine)','SSRF guard: scheme allow-list + blocks private/loopback/link-local/metadata IPs','Rate limiting on login and submissions; the web tier only enqueues work']],
+  ru:['Организатор','Маленькая аккуратная программа читает вашу ссылку, проверяет, что это безопасный публичный адрес (а не уловка, ведущая в приватную сеть), и принимает задачу. Сама она ничего не качает — только распределяет.',
+      ['API: <code>Python</code> + <code>FastAPI</code> (тот же язык, что и движок)','Защита от SSRF: белый список схем + блок приватных/loopback/служебных IP','Ограничение частоты на вход и заявки; веб-слой только ставит задачи в очередь']]},
+ {id:'d4',n:'4',ic:'🎟️',c:C.amber,
+  en:['The waiting line','Your job gets a ticket and waits its turn in a tidy queue. This is why the system never freezes, even if several videos are requested at once.',
+      ['Queue: <code>Redis</code> holds jobs and live progress','Background worker uses <code>arq</code> (async Redis queue)','Concurrency capped so the server stays responsive']],
+  ru:['Очередь ожидания','Ваша задача получает талончик и ждёт своей очереди в аккуратной очереди. Именно поэтому система не зависает, даже если запросить несколько видео сразу.',
+      ['Очередь: <code>Redis</code> хранит задачи и прогресс в реальном времени','Фоновый рабочий использует <code>arq</code> (асинхронная очередь Redis)','Число одновременных задач ограничено, чтобы сервер оставался отзывчивым']]},
+ {id:'d5',n:'5',ic:'⚙️',c:C.amber,
+  en:['The worker','The worker is the muscle. It runs <b>yt-dlp</b>, a famous open-source engine that knows over a thousand websites. It visits the link and downloads the video, reporting progress back to your bar.',
+      ['Engine: <code>yt-dlp</code> called as a library (no risky shell commands)','Fixed, safe options; size/time limits; <code>ffmpeg</code> for merging video+audio','Refuses DRM-protected streams by design (no bypass)']],
+  ru:['Рабочий','Рабочий — это сила. Он запускает <b>yt-dlp</b>, знаменитый открытый движок, который знает более тысячи сайтов. Он заходит по ссылке и скачивает видео, передавая прогресс на вашу полосу.',
+      ['Движок: <code>yt-dlp</code> вызывается как библиотека (без опасных shell-команд)','Фиксированные безопасные опции; лимиты размера/времени; <code>ffmpeg</code> для склейки','По умолчанию отказывается от потоков с DRM (без обхода)']]},
+ {id:'d6',n:'6',ic:'🎬',c:C.amber,
+  en:['The video source','This is the real website where the video lives. The worker behaves like a normal visitor: it only takes what is publicly available, exactly the video you asked for.',
+      ['Any of 1000+ sites supported by yt-dlp extractors','Only the requested item (<code>noplaylist</code> by default)','Respect site terms; lawful, rights-cleared content only']],
+  ru:['Источник видео','Это настоящий сайт, где живёт видео. Рабочий ведёт себя как обычный посетитель: берёт только то, что доступно публично, — ровно то видео, которое вы попросили.',
+      ['Любой из 1000+ сайтов, поддерживаемых экстракторами yt-dlp','Только запрошенный элемент (<code>noplaylist</code> по умолчанию)','Уважение к правилам сайта; только законный контент с правами']]},
+ {id:'d7',n:'7',ic:'💾',c:C.blue,
+  en:['The shelf that forgets','The finished file rests briefly on a private shelf so you can download it. A short time later, the shelf wipes it automatically — your videos do not pile up on the server.',
+      ['Files stored per-job with a random ID; access requires your login','Auto-purge after a configurable TTL (e.g. a few hours)','Minimal logging — privacy by default']],
+  ru:['Полка, которая забывает','Готовый файл недолго лежит на приватной полке, чтобы вы могли его скачать. Через короткое время полка стирает его автоматически — ваши видео не копятся на сервере.',
+      ['Файлы хранятся по задаче со случайным ID; доступ — только после входа','Авто-очистка по настраиваемому таймеру (например, через несколько часов)','Минимум логов — приватность по умолчанию']]},
+];
+const dw=document.getElementById('ddwrap');
+function renderDD(){
+  dw.innerHTML='';
+  DD.forEach(d=>{
+    const data=d[lang];
+    const s=document.createElement('div');s.className='dd reveal';s.id=d.id;
+    s.innerHTML=`<div class="num" style="background:${d.c}">${d.n}</div>
+      <div>
+        <h3><span>${d.ic}</span>${data[0]}</h3>
+        <p class="plain">${data[1]}</p>
+        <div class="flowstrip" style="--c:${d.c}"><i></i></div>
+        <details class="hood"><summary>${lang==='en'?'Under the hood — for a developer':'Под капотом — для разработчика'}</summary>
+          <ul>${data[2].map(x=>`<li>${x}</li>`).join('')}</ul>
+        </details>
+      </div>`;
+    dw.appendChild(s);io.observe(s);
+  });
+}
+function flash(id){const c=document.getElementById(id);if(!c)return;c.scrollIntoView({behavior:'smooth',block:'center'});c.classList.add('flash');setTimeout(()=>c.classList.remove('flash'),1400);}
+
+/* ============ LANGUAGE ============ */
+function applyLang(){
+  document.documentElement.lang=lang;
+  document.querySelectorAll('[data-i18n]').forEach(e=>{const v=T[lang][e.getAttribute('data-i18n')];if(v!=null)e.innerHTML=v;});
+  setNodeLabels();
+  renderDD();
+  if(touring){tbtn.textContent=T[lang]['tourStop'];const s=STEPS[(ti-1+STEPS.length)%STEPS.length];cap.innerHTML=s[lang];}
+  else{tbtn.textContent=T[lang]['map.tour'];}
+}
+document.querySelectorAll('.lang button').forEach(b=>{
+  b.onclick=()=>{lang=b.dataset.lang;document.querySelectorAll('.lang button').forEach(x=>x.classList.toggle('on',x===b));applyLang();};
+});
+
+/* ============ REVEAL + STICKY ============ */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(e=>io.observe(e));
+addEventListener('scroll',()=>document.getElementById('hdr').classList.toggle('stuck',scrollY>20));
+
+/* init */
+setNodeLabels();applyLang();
+</script>
+</body>
+</html>
