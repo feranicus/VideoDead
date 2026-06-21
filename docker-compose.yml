@@ -1,5 +1,7 @@
-# VideoDead — four hardened containers on one droplet.
-# Only `caddy` is exposed to the internet; api/worker/redis stay on an internal network.
+# VideoDead — hardened containers on one droplet.
+# Only `caddy` publishes ports (80/443). api/worker/redis are never reachable
+# from the internet. api & worker get outbound internet (needed by yt-dlp & DNS);
+# redis sits on an isolated network with no internet access at all.
 
 services:
   caddy:
@@ -18,7 +20,7 @@ services:
       - caddy_config:/config
     depends_on:
       - api
-    networks: [edge, internal]
+    networks: [appnet]
     security_opt: ["no-new-privileges:true"]
 
   api:
@@ -28,11 +30,11 @@ services:
     env_file: .env
     volumes:
       - app_data:/data           # sqlite lives here
-      - downloads:/downloads:ro  # api can read files to serve them
+      - downloads:/downloads:ro  # api reads files to serve them
     expose: ["8000"]
     depends_on:
       redis: { condition: service_healthy }
-    networks: [internal]
+    networks: [appnet, backnet]
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
     deploy:
@@ -49,7 +51,7 @@ services:
       - downloads:/downloads     # worker writes files here
     depends_on:
       redis: { condition: service_healthy }
-    networks: [internal]
+    networks: [appnet, backnet]
     security_opt: ["no-new-privileges:true"]
     cap_drop: ["ALL"]
     deploy:
@@ -60,7 +62,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     command: ["redis-server", "--save", "", "--appendonly", "no"]
-    networks: [internal]
+    networks: [backnet]
     security_opt: ["no-new-privileges:true"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -69,9 +71,10 @@ services:
       retries: 5
 
 networks:
-  edge:
-  internal:
-    internal: true
+  appnet:
+    driver: bridge        # has internet egress; no published ports except caddy
+  backnet:
+    internal: true        # fully isolated: redis <-> api/worker only
 
 volumes:
   caddy_data:
