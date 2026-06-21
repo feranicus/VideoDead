@@ -179,14 +179,18 @@ async def upload_cookies(file: UploadFile = File(...), uid: int = Depends(curren
     if len(data) > 2_000_000:
         raise HTTPException(status_code=400, detail="That file is too large to be a cookies file.")
     text = data.decode("utf-8", errors="replace")
-    if "# Netscape HTTP Cookie File" not in text and "\t" not in text:
+    looks_ok = ("netscape" in text.lower()) or ("\t" in text) or ("youtube" in text.lower())
+    if not looks_ok:
         raise HTTPException(
             status_code=400,
-            detail="That doesn't look like a Netscape cookies.txt. Export it in Netscape format.",
+            detail="That doesn't look like a cookies.txt. Export it in Netscape format and try again.",
         )
-    user_dir = Path(settings.user_cookies_dir) / str(uid)
-    user_dir.mkdir(parents=True, exist_ok=True)
-    (user_dir / "cookies.txt").write_text(text, encoding="utf-8")
+    try:
+        user_dir = Path(settings.user_cookies_dir) / str(uid)
+        user_dir.mkdir(parents=True, exist_ok=True)
+        (user_dir / "cookies.txt").write_text(text, encoding="utf-8")
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Could not save cookies: {exc}") from exc
     return {"connected": True}
 
 

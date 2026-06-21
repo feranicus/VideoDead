@@ -31,7 +31,6 @@ services:
     volumes:
       - app_data:/data
       - downloads:/downloads:ro
-      - usercookies:/usercookies          # per-user uploaded cookies (rw)
     expose: ["8000"]
     depends_on:
       redis: { condition: service_healthy }
@@ -52,7 +51,6 @@ services:
       - downloads:/downloads
       - ./secrets:/secrets:ro       # manual cookies.txt (optional)
       - cookies:/cookies:ro         # auto cookies from the cookiejar (future VNC)
-      - usercookies:/usercookies:ro # per-user uploaded cookies
     depends_on:
       redis: { condition: service_healthy }
     networks: [appnet, backnet]
@@ -122,4 +120,3 @@ volumes:
   downloads:
   cookies:
   chrome_profile:
-  usercookies:
