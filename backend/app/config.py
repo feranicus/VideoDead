@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     max_filesize_mb: int = 2048
     max_duration_min: int = 240
     max_concurrent_downloads: int = 2
+    job_timeout_seconds: int = 3600  # arq: max seconds a single download may run
 
     rate_limit_login: int = 10
     rate_limit_submit: int = 20

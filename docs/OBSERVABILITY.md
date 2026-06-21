@@ -22,63 +22,65 @@ It runs as a separate compose **profile**, so it never affects the core app.
    cd /opt/videodead
    docker compose --profile observe up -d
    ```
-3. Open **`https://<your-domain>/observe`** and log in with the user/password above.
-   The "VideoDead — Overview" dashboard (host CPU/RAM/disk, per-container CPU/memory,
-   and a live logs panel) is already provisioned.
+3. Open **`https://<your-domain>/observe`** and log in. Three dashboards are provisioned.
 
-## Use it
+## The three dashboards
 
-- **Metrics:** open the **VideoDead — Overview** dashboard.
-- **Logs:** the dashboard has a logs panel; or go to **Explore → Loki** and query
-  e.g. `{container="videodead-worker-1"}` to read a single service's logs.
-- **More dashboards (optional):** Dashboards → Import → enter ID **1860** (node-exporter
-  full) or **193** (Docker) → select the Prometheus datasource.
+- **VideoDead — Overview** — infrastructure: host CPU/RAM/disk, per-container CPU/memory, live logs.
+- **VideoDead — Security & Access** — who connected, failed logins, links submitted, files saved, suspicious/blocked.
+- **VideoDead — Downloads & Errors** — the download pipeline (see below).
 
 ## Security & access auditing (who did what)
 
-Beyond infrastructure metrics, the app writes a structured **audit log** — one JSON
-line per meaningful action — to stdout, which Promtail ships to Loki. A dedicated
-dashboard, **"VideoDead — Security & Access"**, surfaces it in real time:
+The app writes a structured **audit log** — one JSON line per meaningful action — to
+stdout, which Promtail ships to Loki. The **Security & Access** dashboard surfaces it live:
 
-- **Who connected** — every sign-in with email, IP, and device/browser, plus the
-  exact time. Sign-ups and sign-outs too.
-- **Failed logins** — a stat tile (red above 8 in 1h) and a time chart. This is the
-  main signal of credential-stuffing/brute force.
+- **Who connected** — every sign-in with email, IP, and device/browser, plus the exact time.
+- **Failed logins** — a stat tile (red above 8 in 1h) and a time chart. Main brute-force signal.
 - **Links submitted** — every URL each user requested, with mode (video/audio).
-- **Files downloaded & saved** — filename and size, logged the moment the user saves
-  a file to their PC (which is also when the server deletes it).
-- **Suspicious & blocked** — links that matched the piracy/illegal **watchlist**, plus
-  SSRF-blocked and rate-limited attempts. Review these.
+- **Files downloaded & saved** — filename and size, logged the moment the user saves a file.
+- **Suspicious & blocked** — links matching the piracy/illegal watchlist, plus SSRF/rate-limit blocks.
 
-**Passwords are never logged.** They are one-way hashed (Argon2id); the audit trail
-records *who/when/where/what* and authentication outcomes, not secrets. Any field that
-looks like a password/secret/token is stripped before writing.
+**Passwords are never logged.** They are one-way hashed (Argon2id); the trail records
+*who/when/where/what* and authentication outcomes, not secrets.
 
-### Alerts (Grafana-only for now)
-Two provisioned alert rules live under **Alerting → Alert rules** (folder *VideoDead*):
+## Downloads & errors dashboard
 
-- **Failed login burst** — fires when >8 failed logins occur in 5 minutes.
+The **Downloads & Errors** dashboard charts the download pipeline from the same audit log:
+
+- Submitted vs **Completed** vs **Errors** (24h), and "Saved to a PC".
+- **Data downloaded** and **average download time**.
+- **Completions vs errors over time**, and **data/duration over time**.
+- **Top error reasons** (grouped) and a live feed of **recent failures**.
+- **Video vs Audio** split.
+
+Use it to see at a glance whether downloads are succeeding and *why* any are failing.
+
+## Alerts (Grafana-only for now)
+
+Two provisioned rules live under **Alerting → Alert rules** (folder *VideoDead*):
+
+- **Failed login burst** — >8 failed logins in 5 minutes.
 - **Suspicious link flagged** — fires the instant a submitted link matches the watchlist.
 
-They show in Grafana's Alerting UI today. To get phone/email pushes later, add a
-**Contact point** (Telegram bot, email/SMTP, or a webhook to your Hermes+QWEN service)
-and a notification policy — the rules already exist and will start routing to it.
+To get phone/email pushes later, add a **Contact point** (Telegram, email/SMTP, or a
+webhook to your Hermes+QWEN service) and a notification policy — the rules already exist.
 
-### Tuning the "suspicious" watchlist
-The default list flags common torrent/piracy/stream-ripping hosts. Add your own
-without touching code via `/opt/videodead/.env`:
+## Tuning the "suspicious" watchlist
+
+Add your own hosts without touching code, via `/opt/videodead/.env`:
 ```
 SUSPICIOUS_DOMAINS=examplepirate.com,badstream.net
 ```
-Then `docker compose up -d --build api`. This is a heuristic **flag-and-alert**, not a
-block — strict AI guardrails come in a later phase.
+Then `docker compose up -d --build api`. This is a heuristic **flag-and-alert**, not a block.
 
-### Reading it directly
+## Reading the audit log directly
+
 **Explore → Loki**, then:
 ```
 {container=~"videodead-(api|worker)-1"} | json | log_type="audit"
 ```
-Filter by event, e.g. `| event="suspicious.flagged"` or `| email="someone@example.com"`.
+Filter by event, e.g. `| event="download.error"` or `| email="someone@example.com"`.
 
 ## Manage
 ```bash
@@ -88,8 +90,7 @@ docker compose --profile observe down        # turn the whole stack off
 ```
 
 ## Notes
-- Needs ~500 MB RAM; fine on a 2 GB droplet alongside the app. If you also run the
-  optional YouTube `browser` profile at the same time, watch memory.
-- Grafana has its own login; the page is served over your HTTPS. Change the password by
+- Needs ~1 GB RAM with the full stack; comfortable on the 4 GB droplet alongside the app.
+- Grafana has its own login; served over your HTTPS at `/observe`. Change the password by
   editing `.env` and `docker compose --profile observe up -d` again.
 - Logs are kept ~7 days (Loki retention) and metrics ~7 days (Prometheus retention).

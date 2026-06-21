@@ -223,11 +223,27 @@ function Auth({ t, onAuthed }: { t: (k: string) => string; onAuthed: (email: str
 }
 
 /* ---------------- downloader ---------------- */
+type Prog = {
+  progress?: number | null; status?: string; phase?: string; error?: string;
+  downloaded_mb?: number | null; total_mb?: number | null; speed_mbs?: number | null; eta?: number | null;
+};
+function describe(p: Prog): string {
+  if (p.status === "done") return "Done";
+  if (p.status === "error") return "";
+  if (p.phase === "preparing") return "Preparing — finding the video…";
+  if (p.phase === "converting") return "Converting to a clean file…";
+  const parts = ["Downloading"];
+  if (p.downloaded_mb != null) parts.push(`${p.downloaded_mb}${p.total_mb != null ? ` / ${p.total_mb}` : ""} MB`);
+  if (p.speed_mbs != null) parts.push(`· ${p.speed_mbs} MB/s`);
+  if (p.eta != null && p.eta > 0) parts.push(`· ~${p.eta}s left`);
+  return parts.join(" ");
+}
 function Stage() {
   const [url, setUrl] = useState("");
   const [mode, setMode] = useState<"video" | "audio">("video");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [indet, setIndet] = useState(false);
   const [status, setStatus] = useState("");
   const [err, setErr] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -252,7 +268,7 @@ function Stage() {
   }
 
   function start() {
-    setErr(""); setStatus(""); setProgress(0);
+    setErr(""); setStatus(""); setProgress(0); setIndet(false);
     if (!url.trim()) { setErr("Paste a video link first."); return; }
     setBusy(true);
     api.submit(url.trim(), mode)
@@ -260,11 +276,13 @@ function Stage() {
         const proto = location.protocol === "https:" ? "wss" : "ws";
         const ws = new WebSocket(`${proto}://${location.host}/api/ws/${id}`);
         ws.onmessage = (ev) => {
-          const p = JSON.parse(ev.data) as { progress?: number; status?: string; error?: string };
-          setProgress(p.progress || 0);
-          setStatus(p.status === "done" ? "Done" : p.status === "error" ? "" : "Downloading");
+          const p = JSON.parse(ev.data) as Prog;
+          if (typeof p.progress === "number") setProgress(p.progress);
+          setIndet(p.progress === null || p.progress === undefined);
+          setStatus(describe(p));
           if (p.status === "error") setErr(p.error || "That link could not be downloaded.");
           if (p.status === "done" || p.status === "error") {
+            if (p.status === "done") { setProgress(100); setIndet(false); }
             ws.close(); setBusy(false); setUrl(""); refresh();
           }
         };
@@ -322,10 +340,12 @@ function Stage() {
 
       {(busy || progress > 0) && (
         <div className="scrub">
-          <div className="bar"><div className="fill" style={{ width: `${progress}%` }} /></div>
+          <div className={"bar" + (indet ? " indet" : "")}>
+            <div className="fill" style={indet ? undefined : { width: `${progress}%` }} />
+          </div>
           <div className="meta">
             <span>{busy && <span className="spinreel" />}{status || "Queued"}</span>
-            <b>{Math.round(progress)}%</b>
+            <b>{indet ? "…" : `${Math.round(progress)}%`}</b>
           </div>
         </div>
       )}
