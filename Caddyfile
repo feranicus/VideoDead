@@ -6,14 +6,9 @@
 {$DOMAIN} {
 	encode gzip zstd
 
-	# Security headers (CSA SAS network/platform; OWASP).
+	# HSTS + server hiding apply site-wide (safe for every route).
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "DENY"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		Permissions-Policy "geolocation=(), microphone=(), camera=()"
-		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 		-Server
 	}
 
@@ -23,16 +18,22 @@
 	}
 
 	# Observability dashboard (Grafana) — only reachable when the "observe"
-	# profile is running. Grafana has its own login. Relax the strict CSP/frame
-	# rules here so the dashboard app works.
+	# profile is running. Grafana has its own login and ships its own headers,
+	# so we set NO strict CSP/frame rules here (they would break its UI).
 	handle /observe* {
-		header -Content-Security-Policy
-		header -X-Frame-Options
 		reverse_proxy grafana:3000
 	}
 
-	# Everything else is the static SPA; deep links fall back to index.html.
+	# Everything else is the static SPA. The strict CSP lives HERE only, so it
+	# never touches Grafana. Deep links fall back to index.html.
 	handle {
+		header {
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			Permissions-Policy "geolocation=(), microphone=(), camera=()"
+			Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		}
 		root * /srv/www
 		try_files {path} /index.html
 		file_server

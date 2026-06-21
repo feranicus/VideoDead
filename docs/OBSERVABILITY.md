@@ -34,6 +34,52 @@ It runs as a separate compose **profile**, so it never affects the core app.
 - **More dashboards (optional):** Dashboards → Import → enter ID **1860** (node-exporter
   full) or **193** (Docker) → select the Prometheus datasource.
 
+## Security & access auditing (who did what)
+
+Beyond infrastructure metrics, the app writes a structured **audit log** — one JSON
+line per meaningful action — to stdout, which Promtail ships to Loki. A dedicated
+dashboard, **"VideoDead — Security & Access"**, surfaces it in real time:
+
+- **Who connected** — every sign-in with email, IP, and device/browser, plus the
+  exact time. Sign-ups and sign-outs too.
+- **Failed logins** — a stat tile (red above 8 in 1h) and a time chart. This is the
+  main signal of credential-stuffing/brute force.
+- **Links submitted** — every URL each user requested, with mode (video/audio).
+- **Files downloaded & saved** — filename and size, logged the moment the user saves
+  a file to their PC (which is also when the server deletes it).
+- **Suspicious & blocked** — links that matched the piracy/illegal **watchlist**, plus
+  SSRF-blocked and rate-limited attempts. Review these.
+
+**Passwords are never logged.** They are one-way hashed (Argon2id); the audit trail
+records *who/when/where/what* and authentication outcomes, not secrets. Any field that
+looks like a password/secret/token is stripped before writing.
+
+### Alerts (Grafana-only for now)
+Two provisioned alert rules live under **Alerting → Alert rules** (folder *VideoDead*):
+
+- **Failed login burst** — fires when >8 failed logins occur in 5 minutes.
+- **Suspicious link flagged** — fires the instant a submitted link matches the watchlist.
+
+They show in Grafana's Alerting UI today. To get phone/email pushes later, add a
+**Contact point** (Telegram bot, email/SMTP, or a webhook to your Hermes+QWEN service)
+and a notification policy — the rules already exist and will start routing to it.
+
+### Tuning the "suspicious" watchlist
+The default list flags common torrent/piracy/stream-ripping hosts. Add your own
+without touching code via `/opt/videodead/.env`:
+```
+SUSPICIOUS_DOMAINS=examplepirate.com,badstream.net
+```
+Then `docker compose up -d --build api`. This is a heuristic **flag-and-alert**, not a
+block — strict AI guardrails come in a later phase.
+
+### Reading it directly
+**Explore → Loki**, then:
+```
+{container=~"videodead-(api|worker)-1"} | json | log_type="audit"
+```
+Filter by event, e.g. `| event="suspicious.flagged"` or `| email="someone@example.com"`.
+
 ## Manage
 ```bash
 docker compose --profile observe ps

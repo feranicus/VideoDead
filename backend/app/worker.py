@@ -1,6 +1,6 @@
 """arq worker: pulls jobs from Redis and runs yt-dlp as a library.
 
-yt-dlp is invoked with a fixed options dict — user input only ever populates the
+yt-dlp is invoked with a fixed options dict - user input only ever populates the
 URL and the mode, never a shell string. Progress is pushed to Redis so the API
 can stream it over WebSocket.
 """
@@ -19,10 +19,19 @@ from arq.connections import RedisSettings
 from yt_dlp import YoutubeDL
 
 from . import db
+from .audit import audit
 from .config import settings
 from .security import UnsafeURLError, validate_url
 
 _PROGRESS_KEY = "progress:{job_id}"
+
+
+def _email_for(user_id: int) -> str | None:
+    try:
+        u = db.get_user(user_id)
+        return u["email"] if u else None
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _redis_settings() -> RedisSettings:
@@ -87,7 +96,7 @@ async def download(ctx, job_id: str, url: str, mode: str, user_id: int = 0) -> N
     # yt-dlp rewrites the cookies file after use, so copy the (read-only) source
     # to a writable temp file and hand that to yt-dlp. Fully automatic.
     cookie_tmp = None
-    # PER-USER cookies only — never share one account across users.
+    # PER-USER cookies only - never share one account across users.
     candidates = (
         Path(f"{settings.user_cookies_dir}/{user_id}/cookies.txt"),  # uploaded by this user
         Path(f"/cookies/{user_id}/cookies.txt"),                     # auto-exported (future VNC)
@@ -119,6 +128,8 @@ async def download(ctx, job_id: str, url: str, mode: str, user_id: int = 0) -> N
         else:
             msg = "We couldn't download that link. Reason: " + reason[:200]
         db.update_job(job_id, status="error", error=msg)
+        audit("download.error", email=_email_for(user_id), uid=user_id, job_id=job_id,
+              url=url, reason=msg[:300])
         await publish({"status": "error", "error": msg, "progress": 0})
         return
     finally:
@@ -126,13 +137,17 @@ async def download(ctx, job_id: str, url: str, mode: str, user_id: int = 0) -> N
             Path(cookie_tmp).unlink(missing_ok=True)
 
     fname = None
+    fbytes = 0
     job_dir = Path(settings.download_dir) / job_id
     if job_dir.is_dir():
         files = sorted(job_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
         if files:
             fname = files[0].name
+            fbytes = files[0].stat().st_size
 
     db.update_job(job_id, status="done", filename=fname)
+    audit("download.complete", email=_email_for(user_id), uid=user_id, job_id=job_id,
+          url=url, filename=fname, bytes=fbytes, mode=mode)
     await publish({"status": "done", "progress": 100, "filename": fname})
 
 

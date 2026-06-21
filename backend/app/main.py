@@ -1,7 +1,8 @@
-"""FastAPI app — multi-tenant: per-user signup/login, scoped jobs & files.
+"""FastAPI app - multi-tenant: per-user signup/login, scoped jobs & files.
 
 The web tier validates input and enqueues jobs onto Redis. Long downloads run
-in the arq worker.
+in the arq worker. Every meaningful action is written to the audit log (see
+app/audit.py) and surfaced in Grafana in real time.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from starlette.background import BackgroundTask
 
 from . import auth, db
+from .audit import audit, client_ip, client_ua, device, screen_url
 from .config import settings
 from .schemas import JobRequest, LoginRequest, SignupRequest
 
@@ -28,10 +30,11 @@ app = FastAPI(title="VideoDead", version="2.0.0", docs_url=None, redoc_url=None)
 _hits: dict[str, list[float]] = defaultdict(list)
 
 
-def _rate_limit(key: str, per_minute: int) -> None:
+def _rate_limit(key: str, per_minute: int, ip: str | None = None) -> None:
     now = time.time()
     window = [t for t in _hits[key] if now - t < 60]
     if len(window) >= per_minute:
+        audit("blocked.ratelimit", ip=ip, key=key.split(":")[0])
         raise HTTPException(status_code=429, detail="Too many requests. Please wait a moment.")
     window.append(now)
     _hits[key] = window
@@ -68,7 +71,9 @@ def me(uid: int = Depends(current_user)) -> dict:
 
 @app.post("/api/signup")
 def signup(body: SignupRequest, request: Request) -> JSONResponse:
-    _rate_limit(f"signup:{request.client.host}", settings.rate_limit_login)
+    ip = client_ip(request)
+    ua = client_ua(request)
+    _rate_limit(f"signup:{ip}", settings.rate_limit_login, ip)
     if not auth.password_is_strong(body.password):
         raise HTTPException(
             status_code=400,
@@ -77,6 +82,7 @@ def signup(body: SignupRequest, request: Request) -> JSONResponse:
     if db.get_user_by_email(body.email):
         raise HTTPException(status_code=409, detail="That email is already registered.")
     uid = db.create_user(body.email, auth.hash_password(body.password))
+    audit("auth.signup", email=body.email, uid=uid, ip=ip, ua=ua, device=device(ua))
     resp = JSONResponse({"ok": True})
     _set_session_cookie(resp, uid)
     return resp
@@ -84,17 +90,26 @@ def signup(body: SignupRequest, request: Request) -> JSONResponse:
 
 @app.post("/api/login")
 def login(body: LoginRequest, request: Request) -> JSONResponse:
-    _rate_limit(f"login:{request.client.host}", settings.rate_limit_login)
+    ip = client_ip(request)
+    ua = client_ua(request)
+    _rate_limit(f"login:{ip}", settings.rate_limit_login, ip)
     uid = auth.authenticate(body.email, body.password, body.totp_code)
     if uid is None:
+        # Failed logins are the #1 signal of credential-stuffing - always logged.
+        audit("auth.login.failure", email=body.email, ip=ip, ua=ua,
+              device=device(ua), reason="invalid_credentials")
         raise HTTPException(status_code=401, detail="Incorrect email, password, or code.")
+    audit("auth.login.success", email=body.email, uid=uid, ip=ip, ua=ua, device=device(ua))
     resp = JSONResponse({"ok": True})
     _set_session_cookie(resp, uid)
     return resp
 
 
 @app.post("/api/logout")
-def logout() -> JSONResponse:
+def logout(request: Request, session: str | None = Cookie(default=None)) -> JSONResponse:
+    uid = auth.read_session(session) if session else None
+    user = db.get_user(uid) if uid else None
+    audit("auth.logout", email=user["email"] if user else None, ip=client_ip(request))
     resp = JSONResponse({"ok": True})
     resp.delete_cookie("session", path="/")
     return resp
@@ -104,15 +119,32 @@ def logout() -> JSONResponse:
 
 @app.post("/api/jobs")
 async def submit_job(body: JobRequest, request: Request, uid: int = Depends(current_user)) -> dict:
-    _rate_limit(f"submit:{request.client.host}", settings.rate_limit_submit)
+    ip = client_ip(request)
+    ua = client_ua(request)
+    _rate_limit(f"submit:{ip}", settings.rate_limit_submit, ip)
     from .security import UnsafeURLError, validate_url
+
+    user = db.get_user(uid)
+    email = user["email"] if user else None
 
     try:
         url = validate_url(body.url)
     except UnsafeURLError as exc:
+        audit("download.blocked", email=email, uid=uid, ip=ip, url=body.url[:2048],
+              reason=str(exc))
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     job_id = uuid.uuid4().hex
+
+    # Heuristic screen for piracy/illegal-looking links. We FLAG + alert, not block.
+    flag = screen_url(url)
+    if flag:
+        audit("suspicious.flagged", email=email, uid=uid, ip=ip, ua=ua,
+              device=device(ua), url=url, rule=flag, job_id=job_id)
+
+    audit("download.submit", email=email, uid=uid, ip=ip, ua=ua, device=device(ua),
+          url=url, mode=body.mode, job_id=job_id, flagged=bool(flag))
+
     db.record_job(job_id, uid, url, body.mode)
     await app.state.redis.enqueue_job("download", job_id, url, body.mode, uid, _job_id=job_id)
     return {"id": job_id, "status": "queued"}
@@ -155,7 +187,7 @@ async def job_ws(ws: WebSocket, job_id: str) -> None:
 
 
 @app.get("/api/files/{job_id}")
-def download_file(job_id: str, uid: int = Depends(current_user)) -> FileResponse:
+def download_file(job_id: str, request: Request, uid: int = Depends(current_user)) -> FileResponse:
     if not job_id.isalnum():
         raise HTTPException(status_code=400, detail="Invalid file id.")
     job = db.get_job(job_id)
@@ -166,9 +198,13 @@ def download_file(job_id: str, uid: int = Depends(current_user)) -> FileResponse
     if not files:
         raise HTTPException(status_code=404, detail="File not found or expired.")
     f = files[0]
+    user = db.get_user(uid)
+    size = f.stat().st_size if f.is_file() else 0
 
     def _purge_after_send() -> None:
-        # The user now has the file on their PC — remove it from the server.
+        # The user now has the file on their PC - remove it from the server.
+        audit("download.saved", email=user["email"] if user else None, uid=uid,
+              ip=client_ip(request), job_id=job_id, filename=f.name, bytes=size, url=job["url"])
         shutil.rmtree(job_dir, ignore_errors=True)
         db.update_job(job_id, status="removed", filename=None)
 
@@ -202,6 +238,7 @@ async def upload_cookies(file: UploadFile = File(...), uid: int = Depends(curren
         (user_dir / "cookies.txt").write_text(text, encoding="utf-8")
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Could not save cookies: {exc}") from exc
+    audit("youtube.connected", email=db.get_user(uid)["email"], uid=uid)
     return {"connected": True}
 
 

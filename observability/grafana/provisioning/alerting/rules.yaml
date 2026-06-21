@@ -1,0 +1,92 @@
+# Grafana-provisioned alert rules (Grafana-only delivery for now).
+# These fire on the audit log shipped to Loki. Later you can attach a contact
+# point (Telegram bot / email / Hermes+QWEN webhook) under Alerting > Contact points
+# and these same rules will start pushing notifications out.
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: videodead-security
+    folder: VideoDead
+    interval: 1m
+    rules:
+      # ---- credential-stuffing / brute force -------------------------------
+      - uid: vd-failed-logins
+        title: Failed login burst
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: warning
+          app: videodead
+        annotations:
+          summary: More than 8 failed logins in the last 5 minutes - possible brute force.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: sum(count_over_time({container="videodead-api-1"} | json | event="auth.login.failure" [5m]))
+              queryType: range
+              refId: A
+              intervalMs: 60000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              type: reduce
+              reducer: last
+              expression: A
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              type: threshold
+              expression: B
+              refId: C
+              conditions:
+                - evaluator: { type: gt, params: [8] }
+
+      # ---- suspicious / piracy-looking link submitted ----------------------
+      - uid: vd-suspicious-link
+        title: Suspicious link flagged
+        condition: C
+        for: 0m
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: critical
+          app: videodead
+        annotations:
+          summary: A submitted link matched the piracy/illegal watchlist. Review "Suspicious & blocked" panel.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: loki
+            model:
+              datasource: { type: loki, uid: loki }
+              expr: sum(count_over_time({container="videodead-api-1"} | json | event="suspicious.flagged" [5m]))
+              queryType: range
+              refId: A
+              intervalMs: 60000
+              maxDataPoints: 43200
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              type: reduce
+              reducer: last
+              expression: A
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource: { type: __expr__, uid: __expr__ }
+              type: threshold
+              expression: B
+              refId: C
+              conditions:
+                - evaluator: { type: gt, params: [0] }

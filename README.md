@@ -138,6 +138,10 @@ docker compose exec worker sh -c 'rm -rf /downloads/*'
 
 Secure-by-design per [CISA](https://www.cisa.gov/securebydesign) and Singapore CSA Safe App Standard 2.0. See [`SECURITY.md`](SECURITY.md). Highlights: HTTPS + HSTS, Argon2id passwords, optional TOTP, **per-user cookie isolation** (no shared accounts), SSRF guard, non-root hardened containers, files auto-deleted after download, minimal logging.
 
+### Audit logging & real-time security monitoring
+
+Every meaningful action (sign-in, **failed** sign-in, link submitted, file saved, suspicious/blocked attempt) is written as a structured JSON audit line, shipped to Loki, and shown live on the **“VideoDead — Security & Access”** Grafana dashboard at `/observe` — who connected, when, from which IP/device, which links and files. Passwords are **never** logged. A heuristic watchlist flags piracy/illegal-looking links and two Grafana alert rules fire on failed-login bursts and flagged links. Full details in [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md).
+
 ## Acceptable use
 
 For content you own or have the right to download. Does **not** circumvent DRM. See [`ACCEPTABLE_USE.md`](ACCEPTABLE_USE.md).
