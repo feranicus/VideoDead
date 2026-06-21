@@ -1,0 +1,17 @@
+# Pin majors for reproducibility; Dependabot keeps them current.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+yt-dlp==2025.6.9
+arq==0.26.1
+redis==5.2.1
+argon2-cffi==23.1.0
+pyotp==2.9.0
+itsdangerous==2.2.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-multipart==0.0.20
+
+# dev / test
+pytest==8.3.4
+httpx==0.28.1
+ruff==0.8.4

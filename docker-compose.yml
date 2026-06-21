@@ -1,0 +1,80 @@
+# VideoDead — four hardened containers on one droplet.
+# Only `caddy` is exposed to the internet; api/worker/redis stay on an internal network.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./frontend/dist:/srv/www:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    networks: [edge, internal]
+    security_opt: ["no-new-privileges:true"]
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    env_file: .env
+    volumes:
+      - app_data:/data           # sqlite lives here
+      - downloads:/downloads:ro  # api can read files to serve them
+    expose: ["8000"]
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [internal]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512M }
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    command: arq app.worker.WorkerSettings
+    env_file: .env
+    volumes:
+      - app_data:/data
+      - downloads:/downloads     # worker writes files here
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [internal]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 1024M }
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks: [internal]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  edge:
+  internal:
+    internal: true
+
+volumes:
+  caddy_data:
+  caddy_config:
+  app_data:
+  downloads:
