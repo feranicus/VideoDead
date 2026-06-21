@@ -29,3 +29,7 @@ downloads/
 Thumbs.db
 .idea/
 .vscode/
+
+# Secrets (YouTube cookies etc.) — never commit
+secrets/*
+!secrets/.gitkeep

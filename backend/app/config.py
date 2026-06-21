@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
 
     download_dir: str = "/downloads"
+    cookies_file: str = "/secrets/cookies.txt"
     data_dir: str = "/data"
     file_ttl_hours: int = 6
 

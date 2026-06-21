@@ -49,6 +49,7 @@ services:
     volumes:
       - app_data:/data
       - downloads:/downloads     # worker writes files here
+      - ./secrets:/secrets:ro    # optional cookies.txt for YouTube
     depends_on:
       redis: { condition: service_healthy }
     networks: [appnet, backnet]

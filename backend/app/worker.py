@@ -29,7 +29,7 @@ def _redis_settings() -> RedisSettings:
 def _ydl_options(job_id: str, hook) -> dict:
     """Fixed, safe yt-dlp options. No user-controlled flags."""
     outtmpl = str(Path(settings.download_dir) / job_id / "%(title).80s.%(ext)s")
-    return {
+    opts = {
         "outtmpl": outtmpl,
         "noplaylist": True,
         "restrictfilenames": True,
@@ -40,6 +40,11 @@ def _ydl_options(job_id: str, hook) -> dict:
         # yt-dlp refuses DRM-protected streams; we do not add any bypass.
         "nocheckcertificate": False,
     }
+    # Use a cookies file if the operator provided one (needed for YouTube from a
+    # server IP). Never required; skipped silently when the file is absent.
+    if Path(settings.cookies_file).is_file():
+        opts["cookiefile"] = settings.cookies_file
+    return opts
 
 
 async def download(ctx, job_id: str, url: str, mode: str) -> None:
@@ -88,7 +93,7 @@ async def download(ctx, job_id: str, url: str, mode: str) -> None:
         reason = str(exc).strip().splitlines()[-1] if str(exc).strip() else exc.__class__.__name__
         low = reason.lower()
         if "sign in to confirm" in low or "bot" in low:
-            msg = "This site is blocking the server. For YouTube, cookies are required (see README)."
+            msg = "This site is blocking the server. For YouTube, add a cookies file (see docs/YOUTUBE_COOKIES.md)."
         elif "drm" in low or "protected" in low:
             msg = "That video is DRM-protected and cannot be downloaded."
         elif "requested format" in low:
