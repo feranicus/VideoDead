@@ -84,7 +84,7 @@ services:
       - TZ=Etc/UTC
       - CUSTOM_USER=${BROWSER_USER:-admin}
       - PASSWORD=${BROWSER_PASSWORD:-changeme}
-      - CHROME_CLI=--remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --remote-allow-origins=* https://www.youtube.com
+      - CHROME_CLI=--remote-debugging-port=9222 --remote-allow-origins=* https://www.youtube.com
     volumes:
       - chrome_profile:/config
     ports:
@@ -98,13 +98,13 @@ services:
     profiles: ["youtube"]
     restart: unless-stopped
     environment:
-      - CDP_HOST=browser:9222
+      - CDP_HOST=127.0.0.1:9222
       - COOKIES_OUT=/cookies/cookies.txt
-      - EXPORT_INTERVAL=${EXPORT_INTERVAL:-1800}
+      - EXPORT_INTERVAL=${EXPORT_INTERVAL:-300}
     volumes:
       - cookies:/cookies
+    network_mode: "service:browser"   # share Chromium's netns -> reach 127.0.0.1:9222
     depends_on: [browser]
-    networks: [appnet]
     security_opt: ["no-new-privileges:true"]
 
 networks:
