@@ -1,15 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Job } from "./api";
+import Landing from "./Landing";
+import { type Lang, detectLang, makeT } from "./i18n";
 
 export default function App() {
   const [screen, setScreen] = useState<"loading" | "auth" | "app">("loading");
   const [email, setEmail] = useState("");
+  const [lang, setLang] = useState<Lang>(detectLang());
+  const t = makeT(lang);
 
   useEffect(() => {
     api.me()
       .then((u) => { setEmail(u.email); setScreen("app"); })
       .catch(() => setScreen("auth"));
   }, []);
+
+  const goAuth = () =>
+    document.getElementById("authcard")?.scrollIntoView({ behavior: "smooth", block: "center" });
 
   return (
     <>
@@ -27,10 +34,28 @@ export default function App() {
       </header>
 
       <main className="shell">
-        <Hero />
-        {screen === "loading" && <div className="card reveal"><p className="hint">Loading the projector…</p></div>}
-        {screen === "auth" && <Auth onAuthed={(em) => { setEmail(em); setScreen("app"); }} />}
-        {screen === "app" && <Stage />}
+        {screen === "loading" && (
+          <>
+            <Hero />
+            <div className="card reveal"><p className="hint">Loading the projector…</p></div>
+          </>
+        )}
+
+        {screen === "auth" && (
+          <>
+            <Landing t={t} lang={lang} setLang={setLang} onStart={goAuth} />
+            <div id="authcard">
+              <Auth t={t} onAuthed={(em) => { setEmail(em); setScreen("app"); }} />
+            </div>
+          </>
+        )}
+
+        {screen === "app" && (
+          <>
+            <Hero />
+            <Stage />
+          </>
+        )}
       </main>
     </>
   );
@@ -43,7 +68,6 @@ function Chrome() {
   const dot = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // custom cursor
     const c = cur.current, d = dot.current;
     const move = (e: MouseEvent) => {
       if (c) { c.style.left = `${e.clientX}px`; c.style.top = `${e.clientY}px`; }
@@ -56,7 +80,6 @@ function Chrome() {
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseover", over);
 
-    // floating projector dust
     const canvas = dust.current;
     const ctx = canvas?.getContext("2d") ?? null;
     let raf = 0;
@@ -138,7 +161,7 @@ function Sprockets() {
 }
 
 /* ---------------- auth ---------------- */
-function Auth({ onAuthed }: { onAuthed: (email: string) => void }) {
+function Auth({ t, onAuthed }: { t: (k: string) => string; onAuthed: (email: string) => void }) {
   const [tab, setTab] = useState<"in" | "up">("in");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -163,26 +186,26 @@ function Auth({ onAuthed }: { onAuthed: (email: string) => void }) {
     <div className="card reveal">
       <Sprockets />
       <div className="tabs">
-        <button className={tab === "in" ? "on" : ""} onClick={() => setTab("in")}>Sign in</button>
-        <button className={tab === "up" ? "on" : ""} onClick={() => setTab("up")}>Create account</button>
+        <button className={tab === "in" ? "on" : ""} onClick={() => setTab("in")}>{t("a_signin")}</button>
+        <button className={tab === "up" ? "on" : ""} onClick={() => setTab("up")}>{t("a_signup")}</button>
       </div>
 
       <div className="field">
-        <label>Email</label>
+        <label>{t("a_email")}</label>
         <input className="input" type="email" value={email} autoComplete="email"
           onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
       </div>
       <div className="field">
-        <label>Password</label>
+        <label>{t("a_password")}</label>
         <input className="input" type="password" value={pw}
           autoComplete={tab === "up" ? "new-password" : "current-password"}
           onChange={(e) => setPw(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && go()}
-          placeholder={tab === "up" ? "At least 10 characters" : "Your password"} />
+          placeholder={tab === "up" ? t("a_pw_new") : t("a_pw_cur")} />
       </div>
       {tab === "in" && (
         <div className="field">
-          <label>2-step code <span style={{ textTransform: "none", letterSpacing: 0 }}>(only if enabled)</span></label>
+          <label>{t("a_2fa")} <span style={{ textTransform: "none", letterSpacing: 0 }}>{t("a_2fa_note")}</span></label>
           <input className="input" value={code} inputMode="numeric"
             onChange={(e) => setCode(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && go()}
@@ -191,10 +214,10 @@ function Auth({ onAuthed }: { onAuthed: (email: string) => void }) {
       )}
 
       <button className="cta" onClick={go} disabled={busy}>
-        {busy ? "Please wait…" : tab === "up" ? "Create account" : "Sign in"}
+        {busy ? t("a_wait") : tab === "up" ? t("a_signup") : t("a_signin")}
       </button>
       {err && <p className="err">{err}</p>}
-      <p className="hint">For content you own or have the right to download.</p>
+      <p className="hint">{t("a_hint")}</p>
     </div>
   );
 }

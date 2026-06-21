@@ -185,3 +185,102 @@ input{font-family:inherit}
 .ythelp{margin-top:10px;padding:13px 15px;border-radius:11px;font-size:13px;line-height:1.6;color:#bfe0d9;
   background:rgba(46,230,214,.06);border:1px solid var(--line)}
 .ythelp b{color:var(--gold-bright);font-weight:600}
+
+/* ============================================================
+   MARKETING LANDING (logged-out)
+   ============================================================ */
+.landing{position:relative;z-index:5;max-width:1000px;margin:0 auto;padding:8px 18px 40px;width:100%}
+
+/* language switch */
+.langbar{display:flex;gap:8px;justify-content:center;margin:6px 0 30px}
+.langbtn{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+  padding:7px 14px;border-radius:999px;font:600 13px 'Sora';letter-spacing:.04em;transition:.2s var(--ease)}
+.langbtn:hover{color:var(--ink);border-color:var(--gold)}
+.langbtn.on{color:#10120a;background:linear-gradient(180deg,var(--gold-bright),var(--gold));border-color:transparent}
+
+/* hero */
+.lhero{text-align:center;padding:18px 0 26px}
+.lhead{font-family:'Bebas Neue',sans-serif;font-weight:400;line-height:.96;letter-spacing:.01em;
+  font-size:clamp(40px,8vw,84px);max-width:14ch;margin:0 auto;
+  background:linear-gradient(180deg,#fff,var(--gold) 70%,var(--gold-deep));-webkit-background-clip:text;
+  background-clip:text;color:transparent;text-wrap:balance}
+.lsub{color:var(--muted);font-size:clamp(15px,2.4vw,20px);line-height:1.55;max-width:54ch;margin:18px auto 0;text-wrap:pretty}
+.lcta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+.lghostbtn{display:inline-flex;align-items:center;color:var(--cyan);border:1px solid rgba(46,230,214,.4);
+  padding:14px 22px;border-radius:12px;font:600 15px 'Sora';transition:.2s var(--ease)}
+.lghostbtn:hover{background:rgba(46,230,214,.1);border-color:var(--cyan)}
+.ltrust{margin-top:18px;color:#6f7689;font-size:13px}
+.cta.big{font-size:17px;padding:18px 30px}
+
+/* video tour */
+.lvideo{margin:30px auto;text-align:center;max-width:760px}
+.vframe{position:relative;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  box-shadow:0 30px 80px -30px rgba(0,0,0,.9),inset 0 0 0 1px rgba(255,255,255,.03);background:#000}
+.vframe video{display:block;width:100%;height:auto}
+.vcap{margin-top:12px;color:var(--muted);font-size:13.5px;letter-spacing:.02em}
+
+/* generic band */
+.lband{text-align:center;padding:46px 0;border-top:1px solid var(--line)}
+.kick{display:inline-block;color:var(--cyan);font:700 12px 'Sora';letter-spacing:.22em;text-transform:uppercase;margin-bottom:12px}
+.bandtitle{font-family:'Bebas Neue',sans-serif;font-weight:400;font-size:clamp(28px,5vw,48px);
+  letter-spacing:.01em;color:var(--ink);line-height:1.02}
+.bandtitle.center{text-align:center}
+.bandbody{color:var(--muted);font-size:clamp(15px,2.2vw,18px);line-height:1.6;max-width:52ch;margin:14px auto 0}
+
+/* how it works */
+.lhow{padding:46px 0;border-top:1px solid var(--line)}
+.howhead{text-align:center;margin-bottom:30px}
+.hsub{color:var(--gold);font-size:15px;margin-top:12px;letter-spacing:.01em}
+.lsteps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.lstep{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:22px 18px 20px;text-align:center;transition:.25s var(--ease)}
+.lstep:hover{border-color:var(--gold);transform:translateY(-4px)}
+.lstep-num{position:absolute;top:-14px;left:50%;transform:translateX(-50%);
+  width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+  font:700 15px 'Sora';color:#10120a;background:linear-gradient(180deg,var(--gold-bright),var(--gold));
+  box-shadow:0 6px 18px -6px var(--gold)}
+.lstep-art{margin:14px 0 12px}
+.stepart{width:100%;height:auto;max-height:84px}
+.stepart text{font-family:'Sora',sans-serif}
+.s-box{fill:rgba(255,255,255,.045);stroke:var(--line);stroke-width:1.5}
+.s-link{fill:var(--muted);font-size:9px}
+.s-accent{fill:none;stroke:var(--cyan);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.s-track{fill:rgba(255,255,255,.09)}
+.s-fill{fill:var(--gold)}
+.s-pill{fill:rgba(255,255,255,.05);stroke:var(--line);stroke-width:1.4}
+.s-pill.on{fill:rgba(46,230,214,.18);stroke:var(--cyan);stroke-width:1.8}
+.s-pilltxt{fill:var(--cyan);font-size:12px;font-weight:700}
+.s-pilltxt.dim{fill:var(--muted)}
+.s-slash{stroke:var(--red);stroke-width:2.4}
+.lstep h3{font:700 16px 'Sora';color:var(--ink);margin-bottom:6px}
+.lstep p{color:var(--muted);font-size:13.5px;line-height:1.5}
+
+/* accessibility band */
+.laccess{text-align:center;padding:46px 18px;border-top:1px solid var(--line);
+  background:radial-gradient(60% 100% at 50% 0,rgba(46,230,214,.06),transparent 70%)}
+.accicon{font-size:46px;margin-bottom:8px;filter:drop-shadow(0 6px 18px rgba(46,230,214,.4))}
+
+/* use cases */
+.luses{padding:46px 0;border-top:1px solid var(--line)}
+.usegrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:26px}
+.usecard{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:16px 18px;transition:.2s var(--ease)}
+.usecard:hover{border-color:var(--cyan);background:rgba(46,230,214,.05)}
+.useemoji{font-size:28px;line-height:1;flex:none}
+.uselabel{color:var(--ink);font-size:14.5px;line-height:1.4}
+
+/* final cta */
+.lfinal{text-align:center;padding:54px 0 20px;border-top:1px solid var(--line)}
+.finaltitle{font-family:'Bebas Neue',sans-serif;font-weight:400;font-size:clamp(30px,6vw,60px);
+  line-height:1;color:var(--gold-bright);max-width:16ch;margin:0 auto 26px;text-wrap:balance}
+.legal{margin:26px auto 0;color:#5d6479;font-size:12px;line-height:1.6;max-width:60ch}
+
+/* responsive */
+@media (max-width:880px){ .lsteps{grid-template-columns:repeat(2,1fr);gap:24px 16px} }
+@media (max-width:620px){
+  .usegrid{grid-template-columns:1fr}
+  .lband,.lhow,.luses,.laccess,.lfinal{padding:36px 0}
+  .lcta{flex-direction:column;align-items:stretch}
+  .lcta .cta,.lghostbtn{justify-content:center;text-align:center}
+}
+@media (max-width:430px){ .lsteps{grid-template-columns:1fr;gap:26px} }
