@@ -42,6 +42,8 @@ def _ydl_options(job_id: str, hook) -> dict:
         "no_warnings": True,
         # yt-dlp refuses DRM-protected streams; we do not add any bypass.
         "nocheckcertificate": False,
+        # Try several YouTube player clients; some avoid the PO-token requirement.
+        "extractor_args": {"youtube": {"player_client": ["tv", "web_safari", "web", "mweb"]}},
     }
     return opts
 
@@ -77,7 +79,7 @@ async def download(ctx, job_id: str, url: str, mode: str, user_id: int = 0) -> N
             {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}
         ]
     else:
-        opts["format"] = "bestvideo*+bestaudio/best"
+        opts["format"] = "bestvideo*+bestaudio/best/best"
         opts["merge_output_format"] = "mp4"
 
     # yt-dlp rewrites the cookies file after use, so copy the (read-only) source
