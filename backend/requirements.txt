@@ -1,7 +1,7 @@
 # Pin majors for reproducibility; Dependabot keeps them current.
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
-yt-dlp  # keep UNPINNED: yt-dlp must stay current; rebuild to update
+yt-dlp==2026.6.9  # PINNED to the version that works with YouTube EJS (see docs)
 arq==0.26.1
 redis==5.2.1
 argon2-cffi==23.1.0

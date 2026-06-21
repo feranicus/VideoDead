@@ -175,7 +175,7 @@ footer .fm{font-size:13.5px;margin-top:12px;line-height:1.8}
     <div class="hstats reveal">
       <div class="hstat"><b data-i18n="hero.s1a">1 button</b><span data-i18n="hero.s1b">Paste · choose · download</span></div>
       <div class="hstat"><b data-i18n="hero.s2a">0 to install</b><span data-i18n="hero.s2b">Just open a web page</span></div>
-      <div class="hstat"><b data-i18n="hero.s3a">Private</b><span data-i18n="hero.s3b">Files auto-erase after a while</span></div>
+      <div class="hstat"><b data-i18n="hero.s3a">Private</b><span data-i18n="hero.s3b">Each file deletes the instant you save it</span></div>
     </div>
   </div>
 </section>
@@ -279,7 +279,7 @@ const T={
   'hero.btn1':'▶ Watch how it works','hero.btn2':'Explain it deeper',
   'hero.s1a':'1 button','hero.s1b':'Paste · choose · download',
   'hero.s2a':'0 to install','hero.s2b':'Just open a web page',
-  'hero.s3a':'Private','hero.s3b':'Files auto-erase after a while',
+  'hero.s3a':'Private','hero.s3b':'Each file deletes the instant you save it',
   'one.tag':'/ The whole idea','one.title':'If you remember <em>one thing</em>',
   'one.desc':'You paste the address of a video. A helper on the internet goes and fetches that video for you, and hands you back a clean file you can keep. You never touch anything technical. That is the entire product.',
   'map.tag':'/ The living map · follow the dots','map.title':'Watch your link <em>travel</em>',
@@ -310,7 +310,7 @@ const T={
   'hero.btn1':'▶ Посмотреть, как работает','hero.btn2':'Объяснить подробнее',
   'hero.s1a':'1 кнопка','hero.s1b':'Вставить · выбрать · скачать',
   'hero.s2a':'0 установки','hero.s2b':'Просто откройте страницу',
-  'hero.s3a':'Приватно','hero.s3b':'Файлы сами удаляются со временем',
+  'hero.s3a':'Приватно','hero.s3b':'Файл удаляется сразу после сохранения',
   'one.tag':'/ Вся суть','one.title':'Если запомнить <em>одно</em>',
   'one.desc':'Вы вставляете адрес видео. Помощник в интернете сам идёт и забирает это видео для вас, а затем отдаёт готовый файл, который можно сохранить. Вы не трогаете ничего технического. Это и есть весь продукт.',
   'map.tag':'/ Живая карта · следите за точками','map.title':'Смотрите, как ссылка <em>путешествует</em>',
@@ -462,7 +462,22 @@ const DD=[
   en:['The shelf that forgets','The finished file rests briefly on a private shelf so you can download it. A short time later, the shelf wipes it automatically — your videos do not pile up on the server.',
       ['Files stored per-job with a random ID; access requires your login','Auto-purge after a configurable TTL (e.g. a few hours)','Minimal logging — privacy by default']],
   ru:['Полка, которая забывает','Готовый файл недолго лежит на приватной полке, чтобы вы могли его скачать. Через короткое время полка стирает его автоматически — ваши видео не копятся на сервере.',
-      ['Файлы хранятся по задаче со случайным ID; доступ — только после входа','Авто-очистка по настраиваемому таймеру (например, через несколько часов)','Минимум логов — приватность по умолчанию']]},
+ ['Файлы хранятся по задаче со случайным ID; доступ — только после входа','Авто-очистка по настраиваемому таймеру (например, через несколько часов)','Минимум логов — приватность по умолчанию']]},
+ {id:'d8',n:'8',ic:'🔐',c:C.teal,
+  en:['Your private account','Everyone signs up with their own email and password. Your downloads, your history and your YouTube connection are private to you — no shared logins, no mixing between people.',
+      ['Email + password hashed with <code>Argon2id</code>; optional <code>TOTP</code> 2FA','Secure session cookie (HttpOnly, SameSite=Strict)','Jobs, files and cookies are scoped to your user id — never shared']],
+  ru:['Ваш личный аккаунт','Каждый регистрируется со своей почтой и паролем. Ваши загрузки, история и подключение YouTube приватны — никаких общих входов и смешивания между людьми.',
+      ['Почта + пароль, хеш <code>Argon2id</code>; по желанию <code>TOTP</code> 2FA','Защищённая сессионная кука (HttpOnly, SameSite=Strict)','Задачи, файлы и куки привязаны к вашему id — никогда не общие']]},
+ {id:'d9',n:'9',ic:'▶️',c:C.amber,
+  en:['Connecting your own YouTube','YouTube blocks downloads from servers, so each person connects their own YouTube once (a small cookies file). After that the engine quietly handles YouTube, using a built-in JavaScript runtime to solve its puzzle.',
+      ['Per-user cookies at <code>/data/usercookies/&lt;id&gt;</code> — used only for that user','<code>Node</code> + <code>Deno</code> solve YouTube n-challenge','yt-dlp <code>remote_components: ejs:github</code> fetches the solver; engine version pinned']],
+  ru:['Подключение своего YouTube','YouTube блокирует загрузки с серверов, поэтому каждый один раз подключает свой YouTube (маленький файл cookies). Дальше движок сам справляется с YouTube, решая его головоломку встроенным JavaScript.',
+      ['Куки по пользователю в <code>/data/usercookies/&lt;id&gt;</code> — только для него','<code>Node</code> + <code>Deno</code> решают n-challenge YouTube','yt-dlp <code>remote_components: ejs:github</code> качает решатель; версия движка зафиксирована']]},
+ {id:'d10',n:'10',ic:'🧹',c:C.blue,
+  en:['Deleted the instant you save it','The moment your browser finishes saving a file, the server deletes it. Nothing piles up on the droplet. Anything never downloaded still self-erases after a few hours as a backstop.',
+      ['Removed in a background task right after the download stream ends','The job is marked removed and drops off your list','Hourly TTL purge as a safety net']],
+  ru:['Удаляется сразу после сохранения','Как только браузер закончил сохранять файл, сервер его удаляет. Ничего не копится на дроплете. Что не скачали — само стирается через несколько часов как подстраховка.',
+      ['Удаляется фоновой задачей сразу после окончания скачивания','Задача помечается удалённой и исчезает из списка','Ежечасная очистка по TTL как страховка']]},
 ];
 const dw=document.getElementById('ddwrap');
 function renderDD(){

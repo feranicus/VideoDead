@@ -14,7 +14,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # Always grab the newest yt-dlp at build time (sites change constantly).
-RUN pip install --no-cache-dir -U yt-dlp
+RUN pip install --no-cache-dir -U "yt-dlp==2026.6.9"
 # Deno: yt-dlp's recommended JS runtime for YouTube's n-challenge (EJS).
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && deno --version
 
