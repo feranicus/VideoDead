@@ -36,4 +36,18 @@ export const api = {
     req<{ id: string }>("/jobs", { method: "POST", body: JSON.stringify({ url, mode }) }),
   jobs: () => req<Job[]>("/jobs"),
   fileUrl: (id: string) => `/api/files/${id}`,
+  youtubeStatus: () => req<{ connected: boolean }>("/youtube/status"),
+  disconnectYoutube: () => req<{ connected: boolean }>("/youtube/cookies", { method: "DELETE" }),
+  uploadCookies: async (file: File): Promise<{ connected: boolean }> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/youtube/cookies", {
+      method: "POST", body: fd, credentials: "same-origin",
+    });
+    if (!res.ok) {
+      const b = await res.json().catch(() => ({}));
+      throw new Error(typeof b.detail === "string" ? b.detail : "Upload failed.");
+    }
+    return res.json() as Promise<{ connected: boolean }>;
+  },
 };

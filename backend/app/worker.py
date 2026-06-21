@@ -85,8 +85,8 @@ async def download(ctx, job_id: str, url: str, mode: str, user_id: int = 0) -> N
     cookie_tmp = None
     # PER-USER cookies only — never share one account across users.
     candidates = (
-        Path(f"/cookies/{user_id}/cookies.txt"),   # auto-exported, this user's browser
-        Path(f"/secrets/{user_id}/cookies.txt"),   # manual, this user
+        Path(f"{settings.user_cookies_dir}/{user_id}/cookies.txt"),  # uploaded by this user
+        Path(f"/cookies/{user_id}/cookies.txt"),                     # auto-exported (future VNC)
     )
     src = next((p for p in candidates if p.is_file()), None)
     if src is not None:

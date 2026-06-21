@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     download_dir: str = "/downloads"
     cookies_file: str = "/secrets/cookies.txt"
+    user_cookies_dir: str = "/usercookies"
     data_dir: str = "/data"
     file_ttl_hours: int = 6
 

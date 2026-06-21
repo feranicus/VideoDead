@@ -208,11 +208,25 @@ function Stage() {
   const [status, setStatus] = useState("");
   const [err, setErr] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [yt, setYt] = useState<boolean | null>(null);
+  const [ytHelp, setYtHelp] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   async function refresh() {
     try { setJobs(await api.jobs()); } catch { /* ignore */ }
   }
-  useEffect(() => { refresh(); }, []);
+  async function loadYt() {
+    try { setYt((await api.youtubeStatus()).connected); } catch { setYt(false); }
+  }
+  useEffect(() => { refresh(); loadYt(); }, []);
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setErr("");
+    api.uploadCookies(f).then(() => setYt(true)).catch((x: Error) => setErr(x.message));
+    e.target.value = "";
+  }
 
   function start() {
     setErr(""); setStatus(""); setProgress(0);
@@ -254,6 +268,30 @@ function Stage() {
           </button>
         ))}
       </div>
+
+      <div className="ytbar">
+        <span className="ytlabel">
+          <span className={`ytdot ${yt ? "on" : ""}`} />
+          {yt ? "YouTube connected" : "YouTube not connected"}
+        </span>
+        <div className="ytactions">
+          <button className="ytlink" onClick={() => setYtHelp((v) => !v)}>How?</button>
+          {yt ? (
+            <button className="ytbtn" onClick={() => api.disconnectYoutube().then(() => setYt(false))}>Disconnect</button>
+          ) : (
+            <button className="ytbtn" onClick={() => fileRef.current?.click()}>Connect YouTube</button>
+          )}
+        </div>
+        <input ref={fileRef} type="file" accept=".txt" hidden onChange={onFile} />
+      </div>
+      {ytHelp && (
+        <div className="ythelp">
+          To download YouTube, connect <b>your own</b> account once: in your browser install the
+          extension <b>“Get cookies.txt LOCALLY”</b>, open <b>youtube.com</b> while signed in,
+          export <b>Netscape</b> format, then click <b>Connect YouTube</b> and pick that file.
+          It’s stored privately for your account only.
+        </div>
+      )}
 
       <button className="action" onClick={start} disabled={busy}>
         {busy ? "Rolling…" : "⬇ Download"}

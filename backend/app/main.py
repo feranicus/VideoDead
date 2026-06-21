@@ -14,7 +14,7 @@ from pathlib import Path
 
 from arq import create_pool
 from arq.connections import RedisSettings
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response, WebSocket
+from fastapi import Cookie, Depends, FastAPI, File, HTTPException, Request, Response, UploadFile, WebSocket
 from fastapi.responses import FileResponse, JSONResponse
 
 from . import auth, db
@@ -165,6 +165,36 @@ def download_file(job_id: str, uid: int = Depends(current_user)) -> FileResponse
         raise HTTPException(status_code=404, detail="File not found or expired.")
     f = files[0]
     return FileResponse(f, filename=f.name, media_type="application/octet-stream")
+
+
+@app.get("/api/youtube/status")
+def youtube_status(uid: int = Depends(current_user)) -> dict:
+    f = Path(settings.user_cookies_dir) / str(uid) / "cookies.txt"
+    return {"connected": f.is_file()}
+
+
+@app.post("/api/youtube/cookies")
+async def upload_cookies(file: UploadFile = File(...), uid: int = Depends(current_user)) -> dict:
+    data = await file.read()
+    if len(data) > 2_000_000:
+        raise HTTPException(status_code=400, detail="That file is too large to be a cookies file.")
+    text = data.decode("utf-8", errors="replace")
+    if "# Netscape HTTP Cookie File" not in text and "\t" not in text:
+        raise HTTPException(
+            status_code=400,
+            detail="That doesn't look like a Netscape cookies.txt. Export it in Netscape format.",
+        )
+    user_dir = Path(settings.user_cookies_dir) / str(uid)
+    user_dir.mkdir(parents=True, exist_ok=True)
+    (user_dir / "cookies.txt").write_text(text, encoding="utf-8")
+    return {"connected": True}
+
+
+@app.delete("/api/youtube/cookies")
+def disconnect_youtube(uid: int = Depends(current_user)) -> dict:
+    f = Path(settings.user_cookies_dir) / str(uid) / "cookies.txt"
+    f.unlink(missing_ok=True)
+    return {"connected": False}
 
 
 @app.get("/api/health")

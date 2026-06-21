@@ -165,3 +165,19 @@ input{font-family:inherit}
   .toggle{flex-direction:column}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+
+/* ---------- connect YouTube ---------- */
+.ytbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;
+  padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.25)}
+.ytlabel{display:flex;align-items:center;gap:9px;font-size:13.5px;color:#cdd3df}
+.ytdot{width:9px;height:9px;border-radius:50%;background:#5d6479;box-shadow:none}
+.ytdot.on{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.ytactions{display:flex;align-items:center;gap:10px}
+.ytlink{background:none;border:0;color:var(--muted);font-size:12.5px;text-decoration:underline;transition:.2s}
+.ytlink:hover{color:var(--gold-bright)}
+.ytbtn{background:rgba(46,230,214,.1);border:1px solid var(--cyan);color:var(--cyan);
+  border-radius:9px;padding:9px 14px;font-size:13px;font-weight:700;transition:.2s}
+.ytbtn:hover{background:rgba(46,230,214,.18)}
+.ythelp{margin-top:10px;padding:13px 15px;border-radius:11px;font-size:13px;line-height:1.6;color:#bfe0d9;
+  background:rgba(46,230,214,.06);border:1px solid var(--line)}
+.ythelp b{color:var(--gold-bright);font-weight:600}
