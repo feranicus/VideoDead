@@ -315,7 +315,7 @@ function Stage() {
             <div className="frow" key={j.id}>
               <div className="poster"><span>{j.mode === "audio" ? "🎧" : "🎞️"}</span></div>
               <div className="fname">{j.filename || j.url}</div>
-              <a className="dl" href={api.fileUrl(j.id)}>Save ⬇</a>
+              <a className="dl" href={api.fileUrl(j.id)} onClick={() => setTimeout(refresh, 6000)}>Save ⬇</a>
             </div>
           ))}
         </div>

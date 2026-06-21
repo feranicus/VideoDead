@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg nodejs \
+ && apt-get install -y --no-install-recommends ffmpeg nodejs curl unzip ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -15,6 +15,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # Always grab the newest yt-dlp at build time (sites change constantly).
 RUN pip install --no-cache-dir -U yt-dlp
+# Deno: yt-dlp's recommended JS runtime for YouTube's n-challenge (EJS).
+RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && deno --version
 
 COPY app ./app
 

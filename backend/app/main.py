@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
 import time
 import uuid
 from collections import defaultdict
@@ -16,6 +17,7 @@ from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import Cookie, Depends, FastAPI, File, HTTPException, Request, Response, UploadFile, WebSocket
 from fastapi.responses import FileResponse, JSONResponse
+from starlette.background import BackgroundTask
 
 from . import auth, db
 from .config import settings
@@ -164,7 +166,16 @@ def download_file(job_id: str, uid: int = Depends(current_user)) -> FileResponse
     if not files:
         raise HTTPException(status_code=404, detail="File not found or expired.")
     f = files[0]
-    return FileResponse(f, filename=f.name, media_type="application/octet-stream")
+
+    def _purge_after_send() -> None:
+        # The user now has the file on their PC — remove it from the server.
+        shutil.rmtree(job_dir, ignore_errors=True)
+        db.update_job(job_id, status="removed", filename=None)
+
+    return FileResponse(
+        f, filename=f.name, media_type="application/octet-stream",
+        background=BackgroundTask(_purge_after_send),
+    )
 
 
 @app.get("/api/youtube/status")
