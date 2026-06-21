@@ -33,3 +33,6 @@ Thumbs.db
 # Secrets (YouTube cookies etc.) — never commit
 secrets/*
 !secrets/.gitkeep
+
+# observability local data (if any)
+observability/**/data/

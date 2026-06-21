@@ -22,6 +22,15 @@
 		reverse_proxy api:8000
 	}
 
+	# Observability dashboard (Grafana) — only reachable when the "observe"
+	# profile is running. Grafana has its own login. Relax the strict CSP/frame
+	# rules here so the dashboard app works.
+	handle /observe* {
+		header -Content-Security-Policy
+		header -X-Frame-Options
+		reverse_proxy grafana:3000
+	}
+
 	# Everything else is the static SPA; deep links fall back to index.html.
 	handle {
 		root * /srv/www

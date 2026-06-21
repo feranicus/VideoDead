@@ -1,0 +1,54 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 0,
+  "time": {"from": "now-6h", "to": "now"},
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "title": "VideoDead — Overview",
+  "uid": "videodead-overview",
+  "panels": [
+    {
+      "type": "timeseries", "title": "Host CPU usage %",
+      "gridPos": {"h": 7, "w": 8, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0}},
+      "targets": [{"refId": "A", "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "legendFormat": "cpu"}]
+    },
+    {
+      "type": "gauge", "title": "RAM used %",
+      "gridPos": {"h": 7, "w": 8, "x": 8, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0}},
+      "targets": [{"refId": "A", "expr": "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))"}]
+    },
+    {
+      "type": "gauge", "title": "Disk used % (root)",
+      "gridPos": {"h": 7, "w": 8, "x": 16, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0}},
+      "targets": [{"refId": "A", "expr": "100 * (1 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}))"}]
+    },
+    {
+      "type": "timeseries", "title": "Memory per container",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}},
+      "targets": [{"refId": "A", "expr": "container_memory_usage_bytes{name=~\".+\"}", "legendFormat": "{{name}}"}]
+    },
+    {
+      "type": "timeseries", "title": "CPU per container",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percentunit"}},
+      "targets": [{"refId": "A", "expr": "rate(container_cpu_usage_seconds_total{name=~\".+\"}[5m])", "legendFormat": "{{name}}"}]
+    },
+    {
+      "type": "logs", "title": "Recent logs (all containers)",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 15},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"},
+      "targets": [{"refId": "A", "expr": "{container=~\".+\"}"}]
+    }
+  ]
+}
