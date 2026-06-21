@@ -1,6 +1,5 @@
-// Thin typed client for the VideoDead API. Cookies carry the session.
+// Typed client for the VideoDead API. Cookies carry the session.
 
-export type AppState = { needs_setup: boolean };
 export type Job = {
   id: string;
   url: string;
@@ -18,17 +17,20 @@ async function req<T>(path: string, opts: RequestInit = {}): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail || "Something went wrong. Please try again.");
+    const detail = body.detail;
+    throw new Error(
+      typeof detail === "string" ? detail : "Something went wrong. Please try again."
+    );
   }
   return res.json() as Promise<T>;
 }
 
 export const api = {
-  state: () => req<AppState>("/state"),
-  setup: (password: string) =>
-    req("/setup", { method: "POST", body: JSON.stringify({ password }) }),
-  login: (password: string, totp_code?: string) =>
-    req("/login", { method: "POST", body: JSON.stringify({ password, totp_code }) }),
+  me: () => req<{ email: string }>("/me"),
+  signup: (email: string, password: string) =>
+    req("/signup", { method: "POST", body: JSON.stringify({ email, password }) }),
+  login: (email: string, password: string, totp_code?: string) =>
+    req("/login", { method: "POST", body: JSON.stringify({ email, password, totp_code }) }),
   logout: () => req("/logout", { method: "POST" }),
   submit: (url: string, mode: "video" | "audio") =>
     req<{ id: string }>("/jobs", { method: "POST", body: JSON.stringify({ url, mode }) }),

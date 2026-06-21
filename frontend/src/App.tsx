@@ -1,216 +1,292 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type Job } from "./api";
 
-// One file, three simple screens: first-run setup, login, and the downloader.
 export default function App() {
-  const [screen, setScreen] = useState<"loading" | "setup" | "login" | "app">("loading");
+  const [screen, setScreen] = useState<"loading" | "auth" | "app">("loading");
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
-    api
-      .state()
-      .then((s) => setScreen(s.needs_setup ? "setup" : "login"))
-      .catch(() => setScreen("login"));
+    api.me()
+      .then((u) => { setEmail(u.email); setScreen("app"); })
+      .catch(() => setScreen("auth"));
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 text-white">
-      <div className="w-full max-w-xl">
-        <h1 className="font-display text-4xl tracking-tight mb-1">
-          VideoDead<span className="text-teal">.</span>
-        </h1>
-        <p className="text-white/70 mb-6 text-sm">Paste a link, get the file.</p>
+    <>
+      <Chrome />
+      <header className="topbar">
+        <div className="brand"><span className="reel" />VIDEODEAD<span className="dot">.</span></div>
+        {screen === "app" && (
+          <div className="who">
+            <span className="hidem">Signed in as <b>{email}</b></span>
+            <button className="ghostbtn" onClick={() => api.logout().then(() => { setEmail(""); setScreen("auth"); })}>
+              Sign out
+            </button>
+          </div>
+        )}
+      </header>
 
-        {screen === "loading" && <Card><p className="text-white/70">Loading…</p></Card>}
-        {screen === "setup" && <Setup onDone={() => setScreen("login")} />}
-        {screen === "login" && <Login onDone={() => setScreen("app")} />}
-        {screen === "app" && <Downloader onSignOut={() => setScreen("login")} />}
-      </div>
+      <main className="shell">
+        <Hero />
+        {screen === "loading" && <div className="card reveal"><p className="hint">Loading the projector…</p></div>}
+        {screen === "auth" && <Auth onAuthed={(em) => { setEmail(em); setScreen("app"); }} />}
+        {screen === "app" && <Stage />}
+      </main>
+    </>
+  );
+}
+
+/* ---------------- ambient cinema chrome ---------------- */
+function Chrome() {
+  const dust = useRef<HTMLCanvasElement>(null);
+  const cur = useRef<HTMLDivElement>(null);
+  const dot = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // custom cursor
+    const c = cur.current, d = dot.current;
+    const move = (e: MouseEvent) => {
+      if (c) { c.style.left = `${e.clientX}px`; c.style.top = `${e.clientY}px`; }
+      if (d) { d.style.left = `${e.clientX}px`; d.style.top = `${e.clientY}px`; }
+    };
+    const over = (e: MouseEvent) => {
+      const hot = !!(e.target as HTMLElement)?.closest?.("button,a,input");
+      c?.classList.toggle("hot", hot);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseover", over);
+
+    // floating projector dust
+    const canvas = dust.current;
+    const ctx = canvas?.getContext("2d") ?? null;
+    let raf = 0;
+    type P = { x: number; y: number; r: number; vx: number; vy: number; a: number };
+    let parts: P[] = [];
+    const resize = () => {
+      if (!canvas) return;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const n = Math.min(90, Math.floor(window.innerWidth / 16));
+      parts = Array.from({ length: n }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 1.6 + 0.3,
+        vx: (Math.random() - 0.5) * 0.25,
+        vy: (Math.random() - 0.5) * 0.25,
+        a: Math.random() * 0.5 + 0.1,
+      }));
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    const tick = () => {
+      if (ctx && canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (const p of parts) {
+          p.x += p.vx; p.y += p.vy;
+          if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0;
+          if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(233,205,150,${p.a})`;
+          ctx.fill();
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseover", over);
+      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return (
+    <>
+      <div className="bg"><div className="beam" /></div>
+      <canvas id="dust" ref={dust} />
+      <div className="grain" />
+      <div className="vig" />
+      <div className="bars top" />
+      <div className="bars bot" />
+      <div className="cur" ref={cur} />
+      <div className="cur-dot" ref={dot} />
+    </>
+  );
+}
+
+function Hero() {
+  return (
+    <div className="hero reveal">
+      <div className="eyebrow">Capture the reel</div>
+      <h1 className="title">VIDEODEAD<span className="dot">.</span></h1>
+      <div className="tagline">Any link in — <b>a clean file</b> out</div>
     </div>
   );
 }
 
-function Card({ children }: { children: React.ReactNode }) {
-  return <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur">{children}</div>;
-}
-
-function ErrorMsg({ msg }: { msg: string }) {
-  return msg ? <p className="text-red-300 text-sm mt-3">{msg}</p> : null;
-}
-
-function Setup({ onDone }: { onDone: () => void }) {
-  const [pw, setPw] = useState("");
-  const [err, setErr] = useState("");
-  async function go() {
-    setErr("");
-    try {
-      await api.setup(pw);
-      onDone();
-    } catch (e) {
-      setErr((e as Error).message);
-    }
-  }
+function Sprockets() {
+  const dots = Array.from({ length: 9 });
   return (
-    <Card>
-      <h2 className="text-lg font-semibold mb-2">Create your password</h2>
-      <p className="text-white/60 text-sm mb-4">
-        First time setup. Choose a strong password (12+ characters, mixing letters, numbers and symbols).
-      </p>
-      <input
-        type="password"
-        value={pw}
-        onChange={(e) => setPw(e.target.value)}
-        placeholder="New password"
-        className="w-full rounded-lg bg-white text-ink px-4 py-3 outline-none"
-      />
-      <button onClick={go} className="mt-4 w-full rounded-lg bg-teal text-ink font-semibold py-3">
-        Create password
-      </button>
-      <ErrorMsg msg={err} />
-    </Card>
+    <>
+      <div className="sprockets l">{dots.map((_, i) => <i key={`l${i}`} />)}</div>
+      <div className="sprockets r">{dots.map((_, i) => <i key={`r${i}`} />)}</div>
+    </>
   );
 }
 
-function Login({ onDone }: { onDone: () => void }) {
+/* ---------------- auth ---------------- */
+function Auth({ onAuthed }: { onAuthed: (email: string) => void }) {
+  const [tab, setTab] = useState<"in" | "up">("in");
+  const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [code, setCode] = useState("");
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
   async function go() {
-    setErr("");
+    setErr(""); setBusy(true);
     try {
-      await api.login(pw, code || undefined);
-      onDone();
+      if (tab === "up") await api.signup(email, pw);
+      else await api.login(email, pw, code || undefined);
+      const me = await api.me();
+      onAuthed(me.email);
     } catch (e) {
       setErr((e as Error).message);
+      setBusy(false);
     }
   }
+
   return (
-    <Card>
-      <h2 className="text-lg font-semibold mb-4">Sign in</h2>
-      <input
-        type="password"
-        value={pw}
-        onChange={(e) => setPw(e.target.value)}
-        placeholder="Password"
-        className="w-full rounded-lg bg-white text-ink px-4 py-3 outline-none mb-3"
-        onKeyDown={(e) => e.key === "Enter" && go()}
-      />
-      <input
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        placeholder="6-digit code (only if you enabled it)"
-        className="w-full rounded-lg bg-white text-ink px-4 py-3 outline-none"
-        onKeyDown={(e) => e.key === "Enter" && go()}
-      />
-      <button onClick={go} className="mt-4 w-full rounded-lg bg-teal text-ink font-semibold py-3">
-        Sign in
+    <div className="card reveal">
+      <Sprockets />
+      <div className="tabs">
+        <button className={tab === "in" ? "on" : ""} onClick={() => setTab("in")}>Sign in</button>
+        <button className={tab === "up" ? "on" : ""} onClick={() => setTab("up")}>Create account</button>
+      </div>
+
+      <div className="field">
+        <label>Email</label>
+        <input className="input" type="email" value={email} autoComplete="email"
+          onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+      </div>
+      <div className="field">
+        <label>Password</label>
+        <input className="input" type="password" value={pw}
+          autoComplete={tab === "up" ? "new-password" : "current-password"}
+          onChange={(e) => setPw(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && go()}
+          placeholder={tab === "up" ? "At least 10 characters" : "Your password"} />
+      </div>
+      {tab === "in" && (
+        <div className="field">
+          <label>2-step code <span style={{ textTransform: "none", letterSpacing: 0 }}>(only if enabled)</span></label>
+          <input className="input" value={code} inputMode="numeric"
+            onChange={(e) => setCode(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && go()}
+            placeholder="123 456" />
+        </div>
+      )}
+
+      <button className="cta" onClick={go} disabled={busy}>
+        {busy ? "Please wait…" : tab === "up" ? "Create account" : "Sign in"}
       </button>
-      <ErrorMsg msg={err} />
-    </Card>
+      {err && <p className="err">{err}</p>}
+      <p className="hint">For content you own or have the right to download.</p>
+    </div>
   );
 }
 
-function Downloader({ onSignOut }: { onSignOut: () => void }) {
+/* ---------------- downloader ---------------- */
+function Stage() {
   const [url, setUrl] = useState("");
   const [mode, setMode] = useState<"video" | "audio">("video");
-  const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("");
+  const [err, setErr] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
 
   async function refresh() {
-    try {
-      setJobs(await api.jobs());
-    } catch { /* ignore */ }
+    try { setJobs(await api.jobs()); } catch { /* ignore */ }
   }
   useEffect(() => { refresh(); }, []);
 
-  async function download() {
+  function start() {
     setErr(""); setStatus(""); setProgress(0);
-    if (!url.trim()) { setErr("Please paste a video link first."); return; }
+    if (!url.trim()) { setErr("Paste a video link first."); return; }
     setBusy(true);
-    try {
-      const { id } = await api.submit(url.trim(), mode);
-      const ws = new WebSocket(
-        `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws/${id}`
-      );
-      ws.onmessage = (ev) => {
-        const p = JSON.parse(ev.data);
-        setProgress(p.progress || 0);
-        setStatus(
-          p.status === "done" ? "Done!" :
-          p.status === "error" ? "" : "Downloading…"
-        );
-        if (p.status === "error") setErr(p.error || "That link could not be downloaded.");
-        if (p.status === "done" || p.status === "error") {
-          ws.close(); setBusy(false); setUrl(""); refresh();
-        }
-      };
-      ws.onerror = () => { setBusy(false); setErr("Connection lost. Please try again."); };
-    } catch (e) {
-      setBusy(false);
-      setErr((e as Error).message);
-    }
+    api.submit(url.trim(), mode)
+      .then(({ id }) => {
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        const ws = new WebSocket(`${proto}://${location.host}/api/ws/${id}`);
+        ws.onmessage = (ev) => {
+          const p = JSON.parse(ev.data) as { progress?: number; status?: string; error?: string };
+          setProgress(p.progress || 0);
+          setStatus(p.status === "done" ? "Done" : p.status === "error" ? "" : "Downloading");
+          if (p.status === "error") setErr(p.error || "That link could not be downloaded.");
+          if (p.status === "done" || p.status === "error") {
+            ws.close(); setBusy(false); setUrl(""); refresh();
+          }
+        };
+        ws.onerror = () => { setBusy(false); setErr("Connection lost. Please try again."); };
+      })
+      .catch((e: Error) => { setBusy(false); setErr(e.message); });
   }
 
+  const done = jobs.filter((j) => j.status === "done");
+
   return (
-    <Card>
-      <input
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        placeholder="Paste a video link here"
-        className="w-full rounded-lg bg-white text-ink px-4 py-4 text-lg outline-none"
-      />
-      <div className="flex gap-2 mt-3">
+    <div className="card stage reveal">
+      <Sprockets />
+      <div className="marquee">
+        <input className="input" value={url} onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !busy && start()}
+          placeholder="Paste a video link here" />
+      </div>
+
+      <div className="toggle">
         {(["video", "audio"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`flex-1 rounded-lg py-2 font-medium border ${
-              mode === m ? "bg-teal text-ink border-teal" : "bg-transparent text-white/80 border-white/20"
-            }`}
-          >
-            {m === "video" ? "Video" : "Audio only"}
+          <button key={m} className={mode === m ? "on" : ""} onClick={() => setMode(m)}>
+            {m === "video" ? "🎬 Video" : "🎧 Audio only"}
           </button>
         ))}
       </div>
 
-      <button
-        onClick={download}
-        disabled={busy}
-        className="mt-4 w-full rounded-lg bg-teal text-ink font-semibold py-4 text-lg disabled:opacity-60"
-      >
-        {busy ? "Working…" : "⬇  Download"}
+      <button className="action" onClick={start} disabled={busy}>
+        {busy ? "Rolling…" : "⬇ Download"}
       </button>
 
       {(busy || progress > 0) && (
-        <div className="mt-4">
-          <div className="h-3 w-full bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-teal transition-all" style={{ width: `${progress}%` }} />
+        <div className="scrub">
+          <div className="bar"><div className="fill" style={{ width: `${progress}%` }} /></div>
+          <div className="meta">
+            <span>{busy && <span className="spinreel" />}{status || "Queued"}</span>
+            <b>{Math.round(progress)}%</b>
           </div>
-          <p className="text-white/70 text-sm mt-2">{Math.round(progress)}% · {status}</p>
         </div>
       )}
-      <ErrorMsg msg={err} />
+      {err && <p className="err">{err}</p>}
 
-      {jobs.length > 0 && (
-        <div className="mt-6">
-          <p className="text-white/50 text-xs uppercase tracking-widest mb-2">Finished</p>
-          <ul className="divide-y divide-white/10">
-            {jobs.filter((j) => j.status === "done").map((j) => (
-              <li key={j.id} className="py-2 flex items-center justify-between">
-                <span className="text-sm truncate mr-3">{j.filename || j.url}</span>
-                <a href={api.fileUrl(j.id)} className="text-teal text-sm shrink-0">Download ⬇</a>
-              </li>
-            ))}
-          </ul>
+      {done.length > 0 && (
+        <div className="finished">
+          <h4>Your reel</h4>
+          {done.map((j) => (
+            <div className="frow" key={j.id}>
+              <div className="poster"><span>{j.mode === "audio" ? "🎧" : "🎞️"}</span></div>
+              <div className="fname">{j.filename || j.url}</div>
+              <a className="dl" href={api.fileUrl(j.id)}>Save ⬇</a>
+            </div>
+          ))}
         </div>
       )}
 
-      <div className="mt-6 flex justify-between text-xs text-white/40">
-        <span>For content you have the right to download.</span>
-        <button onClick={() => api.logout().then(onSignOut)} className="hover:text-white/70">Sign out</button>
+      <div className="foot">
+        <span>Encrypted · auto-deletes after a while</span>
+        <span>VIDEODEAD</span>
       </div>
-    </Card>
+    </div>
   );
 }

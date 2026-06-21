@@ -1,6 +1,7 @@
-"""Authentication: Argon2id password hashing, optional TOTP MFA, signed sessions.
+"""Authentication: Argon2id hashing, optional TOTP MFA, signed sessions.
 
-Secure defaults (CISA): no shipped password, MFA available free, strong hashing.
+Multi-tenant: each user has an email + password. Secure defaults (CISA):
+no shipped password, strong hashing, MFA available free.
 """
 from __future__ import annotations
 
@@ -15,8 +16,8 @@ from .config import settings
 _ph = PasswordHasher()
 _serializer = URLSafeTimedSerializer(settings.session_secret, salt="videodead-session")
 
-SESSION_MAX_AGE = 60 * 60 * 8  # 8 hours idle ceiling
-MIN_PASSWORD_LEN = 12
+SESSION_MAX_AGE = 60 * 60 * 24 * 7  # 7 days
+MIN_PASSWORD_LEN = 10
 
 
 def hash_password(password: str) -> str:
@@ -31,7 +32,7 @@ def verify_password(stored_hash: str, password: str) -> bool:
 
 
 def password_is_strong(password: str) -> bool:
-    """Minimal strength gate — length plus some variety. No upper bound trap."""
+    """Minimal strength gate: length plus a little variety."""
     if len(password) < MIN_PASSWORD_LEN:
         return False
     classes = sum(
@@ -41,7 +42,7 @@ def password_is_strong(password: str) -> bool:
                       "0123456789",
                       "!@#$%^&*()-_=+[]{};:,.<>/?")
     )
-    return classes >= 3
+    return classes >= 2
 
 
 def verify_totp(secret: str, code: str) -> bool:
@@ -56,16 +57,16 @@ def read_session(token: str) -> int | None:
     try:
         data = _serializer.loads(token, max_age=SESSION_MAX_AGE)
         return int(data["uid"])
-    except (BadSignature, KeyError, ValueError):
+    except (BadSignature, KeyError, ValueError, TypeError):
         return None
 
 
-def authenticate(password: str, totp_code: str | None) -> int | None:
+def authenticate(email: str, password: str, totp_code: str | None) -> int | None:
     """Return the user id on success, else None."""
-    admin = db.get_admin()
-    if not admin or not verify_password(admin["password_hash"], password):
+    user = db.get_user_by_email(email)
+    if not user or not verify_password(user["password_hash"], password):
         return None
-    if admin["totp_secret"]:
-        if not totp_code or not verify_totp(admin["totp_secret"], totp_code):
+    if user["totp_secret"]:
+        if not totp_code or not verify_totp(user["totp_secret"], totp_code):
             return None
-    return int(admin["id"])
+    return int(user["id"])

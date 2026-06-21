@@ -1,6 +1,6 @@
-"""Tiny SQLite layer for the single admin user and job history.
+"""Tiny SQLite layer: multiple user accounts + per-user job history.
 
-Kept deliberately minimal — one file, no ORM. Redis holds live queue state.
+One file, no ORM. Redis holds live queue state; this holds users and jobs.
 """
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ def _conn() -> sqlite3.Connection:
     conn = sqlite3.connect(_DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA foreign_keys=ON;")
     return conn
 
 
@@ -26,7 +27,7 @@ def init_db() -> None:
         c.execute(
             """CREATE TABLE IF NOT EXISTS users(
                    id INTEGER PRIMARY KEY,
-                   email TEXT NOT NULL,
+                   email TEXT NOT NULL UNIQUE,
                    password_hash TEXT NOT NULL,
                    totp_secret TEXT,
                    created_at INTEGER NOT NULL)"""
@@ -34,6 +35,7 @@ def init_db() -> None:
         c.execute(
             """CREATE TABLE IF NOT EXISTS jobs(
                    id TEXT PRIMARY KEY,
+                   user_id INTEGER NOT NULL,
                    url TEXT NOT NULL,
                    mode TEXT NOT NULL,
                    status TEXT NOT NULL,
@@ -43,22 +45,32 @@ def init_db() -> None:
         )
 
 
-def admin_exists() -> bool:
+# ----------------------------- users ----------------------------- #
+
+def user_count() -> int:
     with _conn() as c:
-        return c.execute("SELECT 1 FROM users LIMIT 1").fetchone() is not None
+        return c.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"]
 
 
-def create_admin(email: str, password_hash: str) -> None:
+def create_user(email: str, password_hash: str) -> int:
     with _conn() as c:
-        c.execute(
+        cur = c.execute(
             "INSERT INTO users(email, password_hash, created_at) VALUES(?,?,?)",
-            (email, password_hash, int(time.time())),
+            (email.lower().strip(), password_hash, int(time.time())),
         )
+        return int(cur.lastrowid)
 
 
-def get_admin() -> sqlite3.Row | None:
+def get_user_by_email(email: str) -> sqlite3.Row | None:
     with _conn() as c:
-        return c.execute("SELECT * FROM users LIMIT 1").fetchone()
+        return c.execute(
+            "SELECT * FROM users WHERE email=?", (email.lower().strip(),)
+        ).fetchone()
+
+
+def get_user(user_id: int) -> sqlite3.Row | None:
+    with _conn() as c:
+        return c.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
 
 
 def set_totp_secret(user_id: int, secret: str | None) -> None:
@@ -66,11 +78,13 @@ def set_totp_secret(user_id: int, secret: str | None) -> None:
         c.execute("UPDATE users SET totp_secret=? WHERE id=?", (secret, user_id))
 
 
-def record_job(job_id: str, url: str, mode: str) -> None:
+# ----------------------------- jobs ------------------------------ #
+
+def record_job(job_id: str, user_id: int, url: str, mode: str) -> None:
     with _conn() as c:
         c.execute(
-            "INSERT INTO jobs(id, url, mode, status, created_at) VALUES(?,?,?,?,?)",
-            (job_id, url, mode, "queued", int(time.time())),
+            "INSERT INTO jobs(id, user_id, url, mode, status, created_at) VALUES(?,?,?,?,?,?)",
+            (job_id, user_id, url, mode, "queued", int(time.time())),
         )
 
 
@@ -82,9 +96,15 @@ def update_job(job_id: str, **fields) -> None:
         c.execute(f"UPDATE jobs SET {cols} WHERE id=?", (*fields.values(), job_id))
 
 
-def list_jobs(limit: int = 25) -> list[dict]:
+def get_job(job_id: str) -> sqlite3.Row | None:
+    with _conn() as c:
+        return c.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+
+
+def list_jobs(user_id: int, limit: int = 25) -> list[dict]:
     with _conn() as c:
         rows = c.execute(
-            "SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)
+            "SELECT * FROM jobs WHERE user_id=? ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit),
         ).fetchall()
         return [dict(r) for r in rows]

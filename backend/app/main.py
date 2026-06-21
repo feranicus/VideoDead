@@ -1,10 +1,11 @@
-"""FastAPI app: first-run setup, login/MFA, job submit, progress, file download.
+"""FastAPI app — multi-tenant: per-user signup/login, scoped jobs & files.
 
-The web tier never downloads anything itself — it validates input and enqueues a
-job onto Redis. Long work happens in the arq worker.
+The web tier validates input and enqueues jobs onto Redis. Long downloads run
+in the arq worker.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 import uuid
@@ -18,11 +19,10 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from . import auth, db
 from .config import settings
-from .schemas import JobRequest, LoginRequest, SetupRequest
+from .schemas import JobRequest, LoginRequest, SignupRequest
 
-app = FastAPI(title="VideoDead", version="1.0.0", docs_url=None, redoc_url=None)
+app = FastAPI(title="VideoDead", version="2.0.0", docs_url=None, redoc_url=None)
 
-# --- naive in-memory rate limiter (single instance is fine for one operator) ---
 _hits: dict[str, list[float]] = defaultdict(list)
 
 
@@ -41,54 +41,51 @@ async def _startup() -> None:
     app.state.redis = await create_pool(RedisSettings.from_dsn(settings.redis_url))
 
 
-# ------------------------------ auth helpers ------------------------------ #
-
 def current_user(session: str | None = Cookie(default=None)) -> int:
     uid = auth.read_session(session) if session else None
-    if uid is None:
+    if uid is None or db.get_user(uid) is None:
         raise HTTPException(status_code=401, detail="Please sign in.")
     return uid
 
 
 def _set_session_cookie(resp: Response, uid: int) -> None:
     resp.set_cookie(
-        "session",
-        auth.make_session(uid),
-        max_age=auth.SESSION_MAX_AGE,
-        httponly=True,
-        secure=True,
-        samesite="strict",
-        path="/",
+        "session", auth.make_session(uid),
+        max_age=auth.SESSION_MAX_AGE, httponly=True, secure=True,
+        samesite="strict", path="/",
     )
 
 
-# ------------------------------ setup / auth ------------------------------ #
+# ------------------------------ auth ------------------------------ #
 
-@app.get("/api/state")
-def app_state() -> dict:
-    """Tells the UI whether first-run setup is needed."""
-    return {"needs_setup": not db.admin_exists()}
+@app.get("/api/me")
+def me(uid: int = Depends(current_user)) -> dict:
+    user = db.get_user(uid)
+    return {"email": user["email"]}
 
 
-@app.post("/api/setup")
-def setup(body: SetupRequest) -> JSONResponse:
-    if db.admin_exists():
-        raise HTTPException(status_code=409, detail="Already set up.")
+@app.post("/api/signup")
+def signup(body: SignupRequest, request: Request) -> JSONResponse:
+    _rate_limit(f"signup:{request.client.host}", settings.rate_limit_login)
     if not auth.password_is_strong(body.password):
         raise HTTPException(
             status_code=400,
-            detail="Use at least 12 characters with a mix of letters, numbers and symbols.",
+            detail="Use at least 10 characters with a mix of letters and numbers.",
         )
-    db.create_admin(settings.admin_email, auth.hash_password(body.password))
-    return JSONResponse({"ok": True})
+    if db.get_user_by_email(body.email):
+        raise HTTPException(status_code=409, detail="That email is already registered.")
+    uid = db.create_user(body.email, auth.hash_password(body.password))
+    resp = JSONResponse({"ok": True})
+    _set_session_cookie(resp, uid)
+    return resp
 
 
 @app.post("/api/login")
 def login(body: LoginRequest, request: Request) -> JSONResponse:
     _rate_limit(f"login:{request.client.host}", settings.rate_limit_login)
-    uid = auth.authenticate(body.password, body.totp_code)
+    uid = auth.authenticate(body.email, body.password, body.totp_code)
     if uid is None:
-        raise HTTPException(status_code=401, detail="Incorrect password or code.")
+        raise HTTPException(status_code=401, detail="Incorrect email, password, or code.")
     resp = JSONResponse({"ok": True})
     _set_session_cookie(resp, uid)
     return resp
@@ -114,26 +111,30 @@ async def submit_job(body: JobRequest, request: Request, uid: int = Depends(curr
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     job_id = uuid.uuid4().hex
-    db.record_job(job_id, url, body.mode)
+    db.record_job(job_id, uid, url, body.mode)
     await app.state.redis.enqueue_job("download", job_id, url, body.mode, _job_id=job_id)
     return {"id": job_id, "status": "queued"}
 
 
 @app.get("/api/jobs")
 def list_jobs(uid: int = Depends(current_user)) -> list[dict]:
-    return db.list_jobs()
+    return db.list_jobs(uid)
 
 
 @app.get("/api/jobs/{job_id}/progress")
 async def job_progress(job_id: str, uid: int = Depends(current_user)) -> dict:
+    job = db.get_job(job_id)
+    if not job or job["user_id"] != uid:
+        raise HTTPException(status_code=404, detail="Not found.")
     raw = await app.state.redis.get(f"progress:{job_id}")
     return json.loads(raw) if raw else {"status": "queued", "progress": 0}
 
 
 @app.websocket("/api/ws/{job_id}")
 async def job_ws(ws: WebSocket, job_id: str) -> None:
-    # Cookie auth on the WS handshake.
-    if auth.read_session(ws.cookies.get("session", "")) is None:
+    uid = auth.read_session(ws.cookies.get("session", ""))
+    job = db.get_job(job_id)
+    if uid is None or not job or job["user_id"] != uid:
         await ws.close(code=4401)
         return
     await ws.accept()
@@ -145,8 +146,6 @@ async def job_ws(ws: WebSocket, job_id: str) -> None:
             await ws.send_json(payload)
             if payload.get("status") in {"done", "error"}:
                 break
-            import asyncio
-
             await asyncio.sleep(1)
     finally:
         await redis.close()
@@ -155,13 +154,13 @@ async def job_ws(ws: WebSocket, job_id: str) -> None:
 
 @app.get("/api/files/{job_id}")
 def download_file(job_id: str, uid: int = Depends(current_user)) -> FileResponse:
-    # job_id is a server-generated hex string; reject anything else (path-traversal guard).
     if not job_id.isalnum():
         raise HTTPException(status_code=400, detail="Invalid file id.")
-    job_dir = Path(settings.download_dir) / job_id
-    if not job_dir.is_dir():
+    job = db.get_job(job_id)
+    if not job or job["user_id"] != uid:
         raise HTTPException(status_code=404, detail="File not found or expired.")
-    files = list(job_dir.iterdir())
+    job_dir = Path(settings.download_dir) / job_id
+    files = list(job_dir.iterdir()) if job_dir.is_dir() else []
     if not files:
         raise HTTPException(status_code=404, detail="File not found or expired.")
     f = files[0]

@@ -7,6 +7,9 @@ can stream it over WebSocket.
 from __future__ import annotations
 
 import logging
+import os
+import shutil
+import tempfile
 
 import json
 from pathlib import Path
@@ -40,10 +43,6 @@ def _ydl_options(job_id: str, hook) -> dict:
         # yt-dlp refuses DRM-protected streams; we do not add any bypass.
         "nocheckcertificate": False,
     }
-    # Use a cookies file if the operator provided one (needed for YouTube from a
-    # server IP). Never required; skipped silently when the file is absent.
-    if Path(settings.cookies_file).is_file():
-        opts["cookiefile"] = settings.cookies_file
     return opts
 
 
@@ -81,6 +80,16 @@ async def download(ctx, job_id: str, url: str, mode: str) -> None:
         opts["format"] = "bestvideo*+bestaudio/best"
         opts["merge_output_format"] = "mp4"
 
+    # yt-dlp rewrites the cookies file after use, so copy the (read-only) source
+    # to a writable temp file and hand that to yt-dlp. Fully automatic.
+    cookie_tmp = None
+    src = Path(settings.cookies_file)
+    if src.is_file():
+        fd, cookie_tmp = tempfile.mkstemp(prefix="ck_", suffix=".txt")
+        os.close(fd)
+        shutil.copyfile(src, cookie_tmp)
+        opts["cookiefile"] = cookie_tmp
+
     db.update_job(job_id, status="downloading")
     await publish({"status": "downloading", "progress": 0})
 
@@ -103,6 +112,9 @@ async def download(ctx, job_id: str, url: str, mode: str) -> None:
         db.update_job(job_id, status="error", error=msg)
         await publish({"status": "error", "error": msg, "progress": 0})
         return
+    finally:
+        if cookie_tmp:
+            Path(cookie_tmp).unlink(missing_ok=True)
 
     fname = None
     job_dir = Path(settings.download_dir) / job_id
