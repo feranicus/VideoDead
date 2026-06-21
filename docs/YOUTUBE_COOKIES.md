@@ -1,51 +1,67 @@
-# Enabling YouTube downloads (cookies)
+# YouTube — automatic cookies (Chromium engine)
 
-YouTube blocks downloads coming from datacenter servers with *"Sign in to confirm you're not
-a bot."* The fix is to give the server a `cookies.txt` from a logged-in YouTube session.
-VideoDead uses it automatically if the file is present, and ignores it if not.
+YouTube blocks downloads from datacenter servers unless the request carries cookies from a
+logged-in session. VideoDead can do this **automatically**: a Chromium browser runs on the
+droplet, stays logged in to a YouTube account, and an exporter feeds fresh cookies to the
+worker on a schedule. After one human login, there is **no manual work** — the doctor and
+other users just paste links.
 
-> **Use a THROWAWAY Google account**, never your personal one. Accounts used for downloads
-> from a server can get rate-limited or locked by Google. Cookies also expire — expect to
-> repeat this every few weeks.
+> Use a **throwaway Google account**, never a personal one. Accounts used from a server can be
+> rate-limited or locked by Google.
 
-## 1. Export cookies.txt from a browser
+## One-time setup
 
-1. In Chrome or Firefox, install the open-source extension **"Get cookies.txt LOCALLY"**.
-2. Open a **private/incognito window** and sign in to `https://youtube.com` with your throwaway account.
-3. Open one normal video once so the session is fully established.
-4. Click the extension → **Export** → save the file as `cookies.txt` (Netscape format, for `youtube.com`).
-5. Close that private window and don't reuse it — YouTube rotates cookies, and reusing the
-   session can invalidate the file you just exported.
-
-## 2. Put it on the server
-
-From your PC (replace the IP if needed):
+### 1. Set a browser password
+In `/opt/videodead/.env` add (or edit):
 
 ```
-scp cookies.txt root@64.225.108.200:/opt/videodead/secrets/cookies.txt
+BROWSER_USER=admin
+BROWSER_PASSWORD=pick-a-strong-one
 ```
 
-The `secrets/` folder is mounted read-only into the worker at `/secrets`, and is git-ignored
-so it never lands in your repository.
-
-## 3. Apply it
-
-On the droplet:
-
+### 2. Start the optional YouTube stack
 ```
 cd /opt/videodead
-docker compose restart worker
+docker compose --profile youtube up -d --build
+```
+This launches `browser` (Chromium) and `cookie-exporter`. The browser's login screen is bound
+to **localhost only** for safety — you reach it through an SSH tunnel.
+
+### 3. Open the browser UI through an SSH tunnel
+From your PC:
+
+```
+ssh -L 3010:127.0.0.1:3010 root@64.225.108.200
 ```
 
-## 4. Test
+Leave that window open, then in your local browser go to:
 
-Paste a YouTube link in the website and press Download. If it still says it's blocked, the
-cookies likely expired or the account got flagged — repeat step 1 with a fresh export.
+```
+http://localhost:3010
+```
+
+Enter the `BROWSER_USER` / `BROWSER_PASSWORD` you set. You'll see a real Chromium desktop.
+
+### 4. Log into YouTube once
+In that Chromium, go to `youtube.com`, sign in with the throwaway Google account, and complete
+any 2-step verification. That's the only manual step, ever. The login persists.
+
+### Done
+Within a few minutes the exporter writes cookies and the worker starts using them automatically.
+Paste a YouTube link in the website to confirm. Cookies refresh on their own every
+`EXPORT_INTERVAL` seconds.
+
+## Managing it
+```
+docker compose --profile youtube ps                 # status
+docker compose logs -f cookie-exporter              # see exports
+docker compose --profile youtube restart browser    # if login gets stuck
+docker compose --profile youtube down               # turn the whole thing off
+```
 
 ## Notes
-- Nothing about the doctor's experience changes — she just pastes links. The cookies work
-  silently in the background.
-- This does **not** bypass DRM or paid content; it only proves to YouTube that the request
-  comes from a real signed-in session.
-- If YouTube reliability matters a lot, the more robust (paid) alternative is routing the
-  worker's traffic through a residential proxy — ask and we can add that later.
+- The core app does **not** depend on this — if the browser stack is off, everything else works;
+  only YouTube needs it.
+- A manual `secrets/cookies.txt` (old method) still works as a fallback if you ever prefer it.
+- This does not bypass DRM; it only proves a real signed-in session to YouTube.
+- Truly zero-login alternative = a residential proxy (paid); ask and we can add it.

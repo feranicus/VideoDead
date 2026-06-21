@@ -83,8 +83,10 @@ async def download(ctx, job_id: str, url: str, mode: str) -> None:
     # yt-dlp rewrites the cookies file after use, so copy the (read-only) source
     # to a writable temp file and hand that to yt-dlp. Fully automatic.
     cookie_tmp = None
-    src = Path(settings.cookies_file)
-    if src.is_file():
+    # Prefer auto-exported cookies (cookiejar), fall back to a manually placed file.
+    candidates = (Path("/cookies/cookies.txt"), Path(settings.cookies_file))
+    src = next((p for p in candidates if p.is_file()), None)
+    if src is not None:
         fd, cookie_tmp = tempfile.mkstemp(prefix="ck_", suffix=".txt")
         os.close(fd)
         shutil.copyfile(src, cookie_tmp)
@@ -102,7 +104,7 @@ async def download(ctx, job_id: str, url: str, mode: str) -> None:
         reason = str(exc).strip().splitlines()[-1] if str(exc).strip() else exc.__class__.__name__
         low = reason.lower()
         if "sign in to confirm" in low or "bot" in low:
-            msg = "This site is blocking the server. For YouTube, add a cookies file (see docs/YOUTUBE_COOKIES.md)."
+            msg = "This site is blocking the server. For YouTube, enable the cookie engine (see docs/YOUTUBE_COOKIES.md)."
         elif "drm" in low or "protected" in low:
             msg = "That video is DRM-protected and cannot be downloaded."
         elif "requested format" in low:

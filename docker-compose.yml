@@ -1,7 +1,7 @@
 # VideoDead — hardened containers on one droplet.
-# Only `caddy` publishes ports (80/443). api/worker/redis are never reachable
-# from the internet. api & worker get outbound internet (needed by yt-dlp & DNS);
-# redis sits on an isolated network with no internet access at all.
+# Core stack: caddy (public 80/443), api, worker, redis.
+# Optional "youtube" profile adds a Chromium + cookie-exporter that auto-feed
+# YouTube cookies to the worker. Start it with:  docker compose --profile youtube up -d
 
 services:
   caddy:
@@ -29,8 +29,8 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     env_file: .env
     volumes:
-      - app_data:/data           # sqlite lives here
-      - downloads:/downloads:ro  # api reads files to serve them
+      - app_data:/data
+      - downloads:/downloads:ro
     expose: ["8000"]
     depends_on:
       redis: { condition: service_healthy }
@@ -48,8 +48,9 @@ services:
     env_file: .env
     volumes:
       - app_data:/data
-      - downloads:/downloads     # worker writes files here
-      - ./secrets:/secrets:ro    # optional cookies.txt for YouTube
+      - downloads:/downloads
+      - ./secrets:/secrets:ro       # manual cookies.txt (optional)
+      - cookies:/cookies:ro         # auto cookies from the cookiejar (optional)
     depends_on:
       redis: { condition: service_healthy }
     networks: [appnet, backnet]
@@ -71,14 +72,51 @@ services:
       timeout: 3s
       retries: 5
 
+  # ---- optional: YouTube auto-cookies (profile "youtube") ----
+  browser:
+    image: lscr.io/linuxserver/chromium:latest
+    profiles: ["youtube"]
+    restart: unless-stopped
+    shm_size: "1gb"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - CUSTOM_USER=${BROWSER_USER:-admin}
+      - PASSWORD=${BROWSER_PASSWORD:-changeme}
+      - CHROME_CLI=--remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 --remote-allow-origins=* https://www.youtube.com
+    volumes:
+      - chrome_profile:/config
+    ports:
+      - "127.0.0.1:3010:3000"       # login UI — localhost only, reach via SSH tunnel
+    expose: ["9222"]
+    networks: [appnet]
+    security_opt: ["seccomp:unconfined"]
+
+  cookie-exporter:
+    build: ./cookiejar
+    profiles: ["youtube"]
+    restart: unless-stopped
+    environment:
+      - CDP_HOST=browser:9222
+      - COOKIES_OUT=/cookies/cookies.txt
+      - EXPORT_INTERVAL=${EXPORT_INTERVAL:-1800}
+    volumes:
+      - cookies:/cookies
+    depends_on: [browser]
+    networks: [appnet]
+    security_opt: ["no-new-privileges:true"]
+
 networks:
   appnet:
-    driver: bridge        # has internet egress; no published ports except caddy
+    driver: bridge
   backnet:
-    internal: true        # fully isolated: redis <-> api/worker only
+    internal: true
 
 volumes:
   caddy_data:
   caddy_config:
   app_data:
   downloads:
+  cookies:
+  chrome_profile:
