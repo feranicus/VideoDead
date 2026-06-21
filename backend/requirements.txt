@@ -3,7 +3,7 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 yt-dlp==2026.6.9  # PINNED to the version that works with YouTube EJS (see docs)
 arq==0.26.1
-redis==5.2.1
+redis==8.0.0
 argon2-cffi==23.1.0
 pyotp==2.9.0
 itsdangerous==2.2.0
