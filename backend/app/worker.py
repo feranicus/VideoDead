@@ -6,6 +6,8 @@ can stream it over WebSocket.
 """
 from __future__ import annotations
 
+import logging
+
 import json
 from pathlib import Path
 
@@ -81,7 +83,18 @@ async def download(ctx, job_id: str, url: str, mode: str) -> None:
         with YoutubeDL(opts) as ydl:
             ydl.download([url])
     except Exception as exc:  # noqa: BLE001 - surface a friendly message
-        msg = "We couldn't download that link. It may be unsupported or protected."
+        # Log the full reason for operators...
+        logging.getLogger("videodead").exception("Download failed for %s", url)
+        reason = str(exc).strip().splitlines()[-1] if str(exc).strip() else exc.__class__.__name__
+        low = reason.lower()
+        if "sign in to confirm" in low or "bot" in low:
+            msg = "This site is blocking the server. For YouTube, cookies are required (see README)."
+        elif "drm" in low or "protected" in low:
+            msg = "That video is DRM-protected and cannot be downloaded."
+        elif "requested format" in low:
+            msg = "No downloadable format was found for that link."
+        else:
+            msg = "We couldn't download that link. Reason: " + reason[:200]
         db.update_job(job_id, status="error", error=msg)
         await publish({"status": "error", "error": msg, "progress": 0})
         return

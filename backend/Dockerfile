@@ -13,6 +13,8 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# Always grab the newest yt-dlp at build time (sites change constantly).
+RUN pip install --no-cache-dir -U yt-dlp
 
 COPY app ./app
 
