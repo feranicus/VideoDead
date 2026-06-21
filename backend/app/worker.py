@@ -46,7 +46,7 @@ def _ydl_options(job_id: str, hook) -> dict:
     return opts
 
 
-async def download(ctx, job_id: str, url: str, mode: str) -> None:
+async def download(ctx, job_id: str, url: str, mode: str, user_id: int = 0) -> None:
     redis = ctx["redis"]
 
     async def publish(payload: dict) -> None:
@@ -83,8 +83,11 @@ async def download(ctx, job_id: str, url: str, mode: str) -> None:
     # yt-dlp rewrites the cookies file after use, so copy the (read-only) source
     # to a writable temp file and hand that to yt-dlp. Fully automatic.
     cookie_tmp = None
-    # Prefer auto-exported cookies (cookiejar), fall back to a manually placed file.
-    candidates = (Path("/cookies/cookies.txt"), Path(settings.cookies_file))
+    # PER-USER cookies only — never share one account across users.
+    candidates = (
+        Path(f"/cookies/{user_id}/cookies.txt"),   # auto-exported, this user's browser
+        Path(f"/secrets/{user_id}/cookies.txt"),   # manual, this user
+    )
     src = next((p for p in candidates if p.is_file()), None)
     if src is not None:
         fd, cookie_tmp = tempfile.mkstemp(prefix="ck_", suffix=".txt")
@@ -104,7 +107,7 @@ async def download(ctx, job_id: str, url: str, mode: str) -> None:
         reason = str(exc).strip().splitlines()[-1] if str(exc).strip() else exc.__class__.__name__
         low = reason.lower()
         if "sign in to confirm" in low or "bot" in low:
-            msg = "This site is blocking the server. For YouTube, enable the cookie engine (see docs/YOUTUBE_COOKIES.md)."
+            msg = "YouTube needs you to connect your own account first (Connect YouTube in the app)."
         elif "drm" in low or "protected" in low:
             msg = "That video is DRM-protected and cannot be downloaded."
         elif "requested format" in low:

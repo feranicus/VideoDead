@@ -112,7 +112,7 @@ async def submit_job(body: JobRequest, request: Request, uid: int = Depends(curr
 
     job_id = uuid.uuid4().hex
     db.record_job(job_id, uid, url, body.mode)
-    await app.state.redis.enqueue_job("download", job_id, url, body.mode, _job_id=job_id)
+    await app.state.redis.enqueue_job("download", job_id, url, body.mode, uid, _job_id=job_id)
     return {"id": job_id, "status": "queued"}
 
 
