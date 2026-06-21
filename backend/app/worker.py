@@ -44,6 +44,8 @@ def _ydl_options(job_id: str, hook) -> dict:
         "nocheckcertificate": False,
         # Try several YouTube player clients; some avoid the PO-token requirement.
         "extractor_args": {"youtube": {"player_client": ["tv", "web_safari", "web", "mweb"]}},
+        # Allow yt-dlp to fetch the EJS challenge-solver so Deno can solve YouTube's "n".
+        "remote_components": ["ejs:github"],
     }
     return opts
 
